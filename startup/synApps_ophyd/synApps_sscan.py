@@ -1,9 +1,23 @@
-print(__file__)
+
+"""
+Ophyd support for the EPICS synApps sscan record
+"""
+# TODO: more documentation
+
 
 from collections import OrderedDict
 from ophyd.device import (
+    Device,
+    Component as Cpt,
     DynamicDeviceComponent as DDC,
     FormattedComponent as FC)
+from ophyd import EpicsSignal, EpicsSignalRO
+
+
+__all__ = """
+    EpicsSscanRecord  
+    EpicsSscanDevice
+	""".split()
 
 
 class EpicsSscanPositioner(Device):
@@ -102,7 +116,7 @@ class EpicsSscanRecord(Device):
         # TODO: what else?
 
 
-class EpicsSynAppsSscanDevice(Device):
+class EpicsSscanDevice(Device):
     """synApps XXX IOC setup of sscan records: $(P):scan$(N)"""
 
     scan_dimension = Cpt(EpicsSignalRO, 'ScanDim')

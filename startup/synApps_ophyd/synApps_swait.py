@@ -1,9 +1,27 @@
-print(__file__)
+
+"""
+Ophyd support for the EPICS synApps swait record
+"""
+# TODO: more documentation
+
 
 from collections import OrderedDict
 from ophyd.device import (
+    Device,
+    Component as Cpt,
     DynamicDeviceComponent as DDC,
     FormattedComponent as FC)
+from ophyd import EpicsSignal, EpicsSignalRO, EpicsMotor
+
+
+__all__ = """
+    EpicsSwaitRecord 
+    EpicsUserCalcsDevice
+    swait_setup_random_number 
+    swait_setup_gaussian
+    swait_setup_lorentzian 
+    swait_setup_incrementer
+	""".split()
 
 
 class EpicsSwaitRecordChannel(Device):
@@ -55,6 +73,7 @@ class EpicsSwaitRecord(Device):
     
     def reset(self):
         """set all fields to default values"""
+        self.desc.put(self.desc.pvname.split(".")[0])
         self.scan.put("Passive")
         self.calc.put("0")
         self.prec.put("5")
