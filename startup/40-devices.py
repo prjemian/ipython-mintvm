@@ -14,3 +14,5 @@ print(__file__)
 #	v = Cpt(SlitAxis, '')
 
 #slit1 = XY_Slit()
+
+from synApps_ophyd import *
