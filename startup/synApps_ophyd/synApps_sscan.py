@@ -17,7 +17,7 @@ from ophyd import EpicsSignal, EpicsSignalRO
 __all__ = """
     EpicsSscanRecord  
     EpicsSscanDevice
-	""".split()
+    """.split()
 
 
 class EpicsSscanPositioner(Device):
@@ -34,7 +34,8 @@ class EpicsSscanPositioner(Device):
     width = FC(EpicsSignal, '{self.prefix}.P{self._ch_num}WD')
     abs_rel = FC(EpicsSignal, '{self.prefix}.P{self._ch_num}AR')
     mode = FC(EpicsSignal, '{self.prefix}.P{self._ch_num}SM')
-    
+    units = FC(EpicsSignalRO, '{self.prefix}.P{self._ch_num}EU')
+
     def __init__(self, prefix, num, **kwargs):
         self._ch_num = num
         super().__init__(prefix, **kwargs)
@@ -57,7 +58,6 @@ class EpicsSscanDetector(Device):
     
     input_pv = FC(EpicsSignal, '{self.prefix}.D{self._ch_num}PV')
     current_value = FC(EpicsSignal, '{self.prefix}.D{self._ch_num}CV')
-    # TODO: triggers
     
     def __init__(self, prefix, num, **kwargs):
         self._ch_num = num
@@ -66,6 +66,22 @@ class EpicsSscanDetector(Device):
     def reset(self):
         """set all fields to default values"""
         self.input_pv.put("")
+
+
+class EpicsSscanTrigger(Device):
+    """detector trigger of an EPICS sscan record"""
+    
+    trigger_pv = FC(EpicsSignal, '{self.prefix}.T{self._ch_num}PV')
+    trigger_value = FC(EpicsSignal, '{self.prefix}.T{self._ch_num}CD')
+
+    def __init__(self, prefix, num, **kwargs):
+        self._ch_num = num
+        super().__init__(prefix, **kwargs)
+    
+    def reset(self):
+        """set all fields to default values"""
+        self.trigger_pv.put("")
+        self.trigger_value.put(1)
 
 
 def _sscan_positioners(channel_list):
@@ -84,16 +100,42 @@ def _sscan_detectors(channel_list):
     return defn
 
 
+def _sscan_triggers(channel_list):
+    defn = OrderedDict()
+    for chan in channel_list:
+        attr = 'd{}'.format(chan)
+        defn[attr] = (EpicsSscanTrigger, '', {'num': chan})
+    return defn
+
+
 class EpicsSscanRecord(Device):
     """EPICS synApps sscan record: used as $(P):userCalc$(N)"""
     
     desc = Cpt(EpicsSignal, '.DESC')
-    faze = Cpt(EpicsSignal, '.FAZE')
-    data_state = Cpt(EpicsSignal, '.DSTATE')
+    faze = Cpt(EpicsSignalRO, '.FAZE')
+    data_state = Cpt(EpicsSignalRO, '.DSTATE')
     npts = Cpt(EpicsSignal, '.NPTS')
     cpt = Cpt(EpicsSignalRO, '.CPT')
     pasm = Cpt(EpicsSignal, '.PASM')
     exsc = Cpt(EpicsSignal, '.EXSC')
+    bspv = Cpt(EpicsSignal, '.BSPV')
+    bscd = Cpt(EpicsSignal, '.BSCD')
+    bswait = Cpt(EpicsSignal, '.BSWAIT')
+    cmnd = Cpt(EpicsSignal, '.CMND')
+    ddly = Cpt(EpicsSignal, '.DDLY')
+    pdly = Cpt(EpicsSignal, '.PDLY')
+    refd = Cpt(EpicsSignal, '.REFD')
+    wait = Cpt(EpicsSignal, '.WAIT')
+    wcnt = Cpt(EpicsSignalRO, '.WCNT')
+    awct = Cpt(EpicsSignal, '.AWCT')
+    acqt = Cpt(EpicsSignal, '.ACQT')
+    acqm = Cpt(EpicsSignal, '.ACQM')
+    atime = Cpt(EpicsSignal, '.ATIME')
+    copyto = Cpt(EpicsSignal, '.COPYTO')
+    a1pv = Cpt(EpicsSignal, '.A1PV')
+    a1cd = Cpt(EpicsSignal, '.A1CD')
+    aspv = Cpt(EpicsSignal, '.ASPV')
+    ascd = Cpt(EpicsSignal, '.ASCD')
 
     positioners = DDC(
         _sscan_positioners(
@@ -105,15 +147,41 @@ class EpicsSscanRecord(Device):
             ["%02d" % k for k in range(1,71)]
         )
     )
+    triggers = DDC(
+        _sscan_triggers(
+            "1 2 3 4".split()
+        )
+    )
     
     def reset(self):
         """set all fields to default values"""
-        self.npts.put(0)
-        for part in (self.positioners, self.detectors):
+        self.desc.put(self.desc.pvname.split(".")[0])
+        self.npts.put(1000)
+        for part in (self.positioners, self.detectors, self.triggers):
             for ch_name in part.read_attrs:
                 channel = part.__getattr__(ch_name)
                 channel.reset()
-        # TODO: what else?
+        self.a1pv.put("")
+        self.acqm.put("NORMAL")
+        if self.name.find("scanH") > 0:
+            self.acqt.put("1D ARRAY")
+        else:
+            self.acqt.put("SCALAR")
+        self.aspv.put("")
+        self.bspv.put("")
+        self.pasm.put("STAY")
+        self.bswait.put("Wait")
+        self.a1cd.put(1)
+        self.ascd.put(1)
+        self.bscd.put(1)
+        self.refd.put(1)
+        self.atime.put(0)
+        self.awct.put(0)
+        self.copyto.put(0)
+        self.ddly.put(0)
+        self.pdly.put(0)
+        while self.wcnt.get() > 0:
+            self.wait.put(0)
 
 
 class EpicsSscanDevice(Device):
@@ -127,6 +195,7 @@ class EpicsSscanDevice(Device):
     scan3 = Cpt(EpicsSscanRecord, 'scan3')
     scan4 = Cpt(EpicsSscanRecord, 'scan4')
     scanH = Cpt(EpicsSscanRecord, 'scanH')
+    resume_delay = Cpt(EpicsSignal, 'scanResumeSEQ.DLY1')
 
     def reset(self):
         """set all fields to default values"""
@@ -135,4 +204,3 @@ class EpicsSscanDevice(Device):
         self.scan3.reset()
         self.scan4.reset()
         self.scanH.reset()
-        # TODO: what else?
