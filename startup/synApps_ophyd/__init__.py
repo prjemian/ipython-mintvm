@@ -14,10 +14,8 @@ EXAMPLES
 
     calc1 = calcs.calc1
     synApps_ophyd.swait_setup_random_number(calc1)
-    calc1.desc.put("uniform random numbers")
 
     synApps_ophyd.swait_setup_incrementer(calcs.calc2)
-    calcs.calc2.desc.put("incrementer")
     
     calc1.reset()
 

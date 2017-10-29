@@ -124,6 +124,7 @@ def swait_setup_random_number(swait, **kw):
     swait.scan.put("Passive")
     swait.calc.put("RNDM")
     swait.scan.put(".1 second")
+    swait.desc.put("uniform random numbers")
 
 
 def swait_setup_gaussian(swait, motor, center=0, width=1, scale=1, noise=0.05):
@@ -141,6 +142,7 @@ def swait_setup_gaussian(swait, motor, center=0, width=1, scale=1, noise=0.05):
     swait.channels.E.value.put(noise)
     swait.calc.put("D*(0.95+E*RNDM)/exp(((A-b)/c)^2)")
     swait.scan.put("I/O Intr")
+    swait.desc.put("noisy Gaussian curve")
 
 
 def swait_setup_lorentzian(swait, motor, center=0, width=1, scale=1, noise=0.05):
@@ -158,6 +160,7 @@ def swait_setup_lorentzian(swait, motor, center=0, width=1, scale=1, noise=0.05)
     swait.channels.E.value.put(noise)
     swait.calc.put("D*(0.95+E*RNDM)/(1+((A-b)/c)^2)")
     swait.scan.put("I/O Intr")
+    swait.desc.put("noisy Lorentzian curve")
 
 
 def swait_setup_incrementer(swait, scan=None, limit=100000):
@@ -171,3 +174,4 @@ def swait_setup_incrementer(swait, scan=None, limit=100000):
     swait.channels.B.value.put(limit)
     swait.calc.put("(A+1) % B")
     swait.scan.put(scan)
+    swait.desc.put("incrementer")
