@@ -19,6 +19,8 @@ EXAMPLES
     
     calc1.reset()
 
+Compare this effort with a similar project:
+https://github.com/klauer/recordwhat
 """
 
 
