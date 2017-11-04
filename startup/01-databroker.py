@@ -7,7 +7,30 @@ callback_db = {}
 
 # load config from ~/.config/databroker/mongodb_config.yml
 from databroker import Broker
-db = Broker.named("mongodb_config")
+#db = Broker.named("mongodb_config")
+mongodb_config = {
+	'description': 'heavyweight shared database',
+	'metadatastore': {
+		'module': 'databroker.headersource.mongo',
+		'class': 'MDS',
+		'config': {
+			'host': 'localhost',
+			'port': 27017,
+			'database': 'prj-metadatastore-testing',
+			'timezone': 'US/Central'
+		}
+	},
+	'assets': {
+		'module': 'databroker.assets.mongo',
+		'class': 'Registry',
+		'config': {
+			'host': 'localhost',
+			'port': 27017,
+			'database': 'prj-metadatastore-testing'
+		}
+	}
+}
+db = Broker.from_config(mongodb_config)
 
 
 # Subscribe metadatastore to documents.
@@ -32,7 +55,7 @@ get_ipython().register_magics(BlueskyMagics)
 from bluesky.callbacks.best_effort import BestEffortCallback
 bec = BestEffortCallback()
 callback_db['BestEffortCallback'] = RE.subscribe(bec)
-peaks = bec.peaks  # just as alias for less typing
+peaks = bec.peaks  # just an alias for less typing
 
 # At the end of every run, verify that files were saved and
 # print a confirmation message.
