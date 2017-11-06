@@ -33,6 +33,13 @@ mongodb_config = {
 db = Broker.from_config(mongodb_config)
 
 
+### one-time setup for a mongodb server and "collection"
+if False:
+	# run this command AFTER db = databroker.Broker.from_config(cfg)
+	from databroker.assets.utils import install_sentinels
+	install_sentinels(db.reg.config, version=1)
+
+
 # Subscribe metadatastore to documents.
 # If this is removed, data is not saved to metadatastore.
 callback_db['Broker'] = RE.subscribe(db.insert)
