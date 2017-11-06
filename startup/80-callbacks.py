@@ -2,27 +2,34 @@ print(__file__)
 
 # custom callbacks
 
-plan_documents = {}
 
-def custom_callback(key, document):
-	"""keep all documents from recent plan in memory"""
-	global plan_documents
-	if key == "start":
-		plan_documents = {key: document}
-	elif key in ("descriptor", "event"):
-		if key not in plan_documents:
-			plan_documents[key] = []
-		plan_documents[key].append(document)
-	elif key == "stop":
-		plan_documents[key] = document
-		print("all documents from last plan in variable: plan_documents")
-		print("exit status:", document["exit_status"])
-		if "descriptor" in plan_documents:
-			print("# descriptor(s):", len(plan_documents["descriptor"]))
-		if "event" in plan_documents:
-			print("# event(s):", len(plan_documents["event"]))
-	else:
-		print("custom_callback (unhandled):", key, document)
-	return
+class CustomCallbackCollector(object):
+    """
+    My BlueSky support to collect *all* documents emitted
+    """
+    
+    def __init__(self):
+        self.documents = {}
 
-callback_db['custom_callback'] = RE.subscribe(custom_callback)
+    def receiver(self, key, document):
+        """keep all documents from recent plan in memory"""
+        if key == "start":
+            self.documents = {key: document}
+        elif key in ("descriptor", "event"):
+            if key not in self.documents:
+                self.documents[key] = []
+            self.documents[key].append(document)
+        elif key == "stop":
+            self.documents[key] = document
+            print("exit status:", document["exit_status"])
+            if "descriptor" in self.documents:
+                print("# descriptor(s):", len(self.documents["descriptor"]))
+            if "event" in self.documents:
+                print("# event(s):", len(self.documents["event"]))
+        else:
+            print("custom_callback (unhandled):", key, document)
+        return
+
+
+cb_collector = CustomCallbackCollector()
+callback_db['cb_collector'] = RE.subscribe(cb_collector.receiver)
