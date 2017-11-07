@@ -1,3 +1,4 @@
+#/usr/bin/env python
 
 """
 Python ZeroMQ pair connection example
@@ -99,3 +100,7 @@ def client_example(filename, host=None):
             talker.send_string(line.rstrip("\n"))
     talker.send_string(talker.eot_signal_text.decode())
     print("\nEnding 0MQ client")
+
+
+if __name__ == "__main__":
+	server_example()
