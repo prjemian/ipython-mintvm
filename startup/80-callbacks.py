@@ -42,14 +42,12 @@ class MyCallback0MQ(object):
     My BlueSky 0MQ talker to send *all* documents emitted
     """
     
-    eot_signal_text = b"END OF TRANSMISSION"
-    
     def __init__(self, host=None, port=None, detector=None):
         self.talker = ZMQ_Pair(host or "localhost", port or "5556")
         self.detector = detector
     
     def end(self):
-        self.talker.send_string(self.talker.eot_signal_text.decode)
+        self.talker.send_string(self.talker.eot_signal_text.decode())
 
     def receiver(self, key, document):
         """receive from RunEngine, send from 0MQ talker"""

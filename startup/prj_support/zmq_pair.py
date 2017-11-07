@@ -6,9 +6,14 @@ Python ZeroMQ pair connection example
 :seealso: https://stackoverflow.com/questions/23855563/simple-client-server-zmq-in-python-to-send-multiple-lines-per-request
 """
 
+# example that shows polling for input
+# http://learning-0mq-with-pyzmq.readthedocs.io/en/latest/pyzmq/multisocket/zmqpoller.html
+
+
 import zmq
 
 __all__ = ['ZMQ_Pair', 'server_example', 'client_example']
+
 
 class ZMQ_Pair(object):
     """
@@ -18,6 +23,8 @@ class ZMQ_Pair(object):
     port = "5556"
     socket_type = zmq.PAIR
     host = "*"
+    eot_signal_text = b"END OF TRANSMISSION"
+    eot_signal_text = b"HANGUP"
     
     def __init__(self, host=None, port=None):
         self.port = str(port or self.port)
@@ -43,10 +50,6 @@ class ZMQ_Pair(object):
         self.socket.send(chunk)
 
 
-# example that shows polling for input
-# http://learning-0mq-with-pyzmq.readthedocs.io/en/latest/pyzmq/multisocket/zmqpoller.html
-
-
 def server_example():
     """
     from zmq_pair import server_example
@@ -54,7 +57,6 @@ def server_example():
     """
     from zmq_pair import ZMQ_Pair
     import socket
-    eot_signal_text = b"END OF TRANSMISSION"
 
     listener = ZMQ_Pair()
     print("0MQ server Listening now: {}".format(str(listener)))
@@ -70,8 +72,8 @@ def server_example():
         if len(msg) < 12:
             print(type(msg), msg.decode())
         else:
-            print(type(msg), len(msg))
-        if msg == eot_signal_text:
+            print(type(msg), "length={}".format(len(msg)))
+        if str(msg) == str(listener.eot_signal_text):
             break
     print("\n 0MQ server stopped listening")
 
@@ -84,7 +86,6 @@ def client_example(filename, host=None):
     client_example("zmq_pair.py", "10.0.2.2") # on VM
     """
     from zmq_pair import ZMQ_Pair
-    eot_signal_text = "END OF TRANSMISSION"
 
     talker = ZMQ_Pair(host or "localhost")
     print("Starting 0MQ client: {}".format(str(talker)))
@@ -96,5 +97,5 @@ def client_example(filename, host=None):
     with open(filename, 'r') as f:
         for line in f:
             talker.send_string(line.rstrip("\n"))
-    talker.send_string(eot_signal_text)
+    talker.send_string(talker.eot_signal_text.decode())
     print("\nEnding 0MQ client")
