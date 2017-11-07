@@ -16,7 +16,7 @@ plt.ion()
 from bluesky.utils import install_qt_kicker
 install_qt_kicker()
 
-# Optional: set any metadata that rarely changes. in 60-metadata.py
+# Optional: set any metadata that rarely changes in 60-metadata.py
 
 # convenience imports
 from bluesky.callbacks import *
@@ -30,3 +30,6 @@ import numpy as np
 # import logging
 # ophyd.logger.setLevel(logging.DEBUG)
 # logging.basicConfig(level=logging.DEBUG)
+
+# needed for the EPICS areaDetector SimDetector (12M + 100)
+os.environ["EPICS_CA_MAX_ARRAY_BYTES"] = "12000100"
