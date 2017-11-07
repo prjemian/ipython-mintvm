@@ -1,7 +1,7 @@
 print(__file__)
 
 from ophyd import SingleTrigger, AreaDetector, SimDetector
-from ophyd.areadetector.plugins import HDF5Plugin
+from ophyd.areadetector.plugins import HDF5Plugin, ImagePlugin
 from ophyd.areadetector.trigger_mixins import SingleTrigger
 from ophyd.areadetector.filestore_mixins import FileStoreHDF5IterativeWrite
 from ophyd import Component, Device, EpicsSignalWithRBV
@@ -21,6 +21,7 @@ class MyHDF5Plugin(HDF5Plugin, FileStoreHDF5IterativeWrite):
 
 class MyHdf5Detector(SimDetector, SingleTrigger):
     
+    image = Component(ImagePlugin, suffix="image1:")
     hdf1 = Component(
         MyHDF5Plugin,
         suffix='HDF1:', 
@@ -30,16 +31,23 @@ class MyHdf5Detector(SimDetector, SingleTrigger):
     )
 
 
+class MyPlainSimDetector(SimDetector, SingleTrigger):
+    image = Component(ImagePlugin, suffix="image1:")
+    
+
 try:
 
     simdet = MyHdf5Detector('13SIM1:', name='simdet')
     simdet.read_attrs = ['hdf1', 'cam']
-    simdet.hdf1.read_attrs = []  # 'image' gets added dynamically
+    simdet.hdf1.read_attrs = []  # 'image' *should be* added dynamically
     # put these things in each event document
     # only first 3 characters show in the LiveTable callback.  So what?
     simdet.hdf1.read_attrs.append("file_name")
     simdet.hdf1.read_attrs.append("file_path")
     simdet.hdf1.read_attrs.append("full_file_name")
+
+    plainsimdet = MyPlainSimDetector('13SIM1:', name='plainsimdet')
+    plainsimdet.read_attrs = ['cam']
 
 except TimeoutError:
     print("Could not connect 13SIM1: sim detector")
