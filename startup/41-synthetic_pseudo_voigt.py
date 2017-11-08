@@ -1,10 +1,10 @@
 print(__file__)
 
 
-import bluesky.examples
+import ophyd.sim
 
 
-class SynPseudoVoigt(bluesky.examples.Reader):
+class SynPseudoVoigt(ophyd.sim.SynSignal):
     """
     Evaluate a point on a pseudo-Voigt based on the value of a motor.
     
@@ -90,7 +90,7 @@ class SynPseudoVoigt(bluesky.examples.Reader):
                 v += np.random.uniform(-1, 1) * noise_multiplier
             return v
 
-        super().__init__(name, {name: pvoigt}, **kwargs)
+        super().__init__(name=name, func=pvoigt, **kwargs)
 
 
 synthetic_pseudovoigt = SynPseudoVoigt(
