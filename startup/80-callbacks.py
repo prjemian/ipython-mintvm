@@ -10,12 +10,15 @@ class CustomCallbackCollector(object):
     
     def __init__(self):
         self.documents = {}
+        self.uids = []
 
     def receiver(self, key, document):
         """keep all documents from recent plan in memory"""
+        if "uid" in document:
+            self.uids.append(document["uid"])
         if key == "start":
             self.documents = {key: document}
-        elif key in ("descriptor", "event"):
+        elif key in ("descriptor", "event", "bulk_events"):
             if key not in self.documents:
                 self.documents[key] = []
             self.documents[key].append(document)
@@ -27,7 +30,10 @@ class CustomCallbackCollector(object):
             if "event" in self.documents:
                 print("# event(s):", len(self.documents["event"]))
         else:
-            print("custom_callback (unhandled):", key, document)
+            print("custom_callback encountered:", key, document)
+            if key not in self.documents:
+                self.documents[key] = []
+            self.documents[key].append(document)
         return
 
 
