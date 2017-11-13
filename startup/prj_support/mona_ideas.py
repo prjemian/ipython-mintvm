@@ -5,7 +5,7 @@ ideas to try with mona
             preparing to fly scan areadetector vs. motor
             all of this (below) works
 
-Also, look at this work with Dan Allen from 2017-07:
+Also, look at this work with Dan Allan from 2017-07:
 https://gist.github.com/danielballan/5cdd4ab1c54a54303ebf1b6e319c101d
 analysis server-client sketch
 """
