@@ -1,28 +1,61 @@
 
 """
-a BlueSky callback that writes SPEC data files
+BlueSky callback that writes SPEC data files
+
+EXAMPLE : use as BlueSky callback::
+
+    from specwriter import SpecWriterCallback
+    specwriter = SpecWriterCallback()
+    RE.subscribe(specwriter.receiver)
+
+EXAMPLE : use as writer from Databroker::
+
+    from specwriter import SpecWriterCallback
+    specwriter = SpecWriterCallback()
+    for key, doc in db.get_documents(db[-1]):
+        specwriter.receiver(key, doc)
+
 """
 
 
 from collections import OrderedDict
 import datetime
 import os
+
 from databroker import Broker
+
+
+#    Programmer's Note: subclassing from `object` avoids the need 
+#    to import `bluesky.callbacks.core.CallbackBase`.  
+#    One less import when only accessing the Databroker.
+#    The *only* advantage to subclassing from CallbackBase
+#    seems to be a simpler setup call to RE.subscribe().
+#
+#    superclass   | subscription code
+#    ------------ | -------------------------------
+#    object       | RE.subscribe(specwriter.receiver)
+#    CallbackBase | RE.subscribe(specwriter)
 
 
 class SpecWriterCallback(object):
     """
     collect data from BlueSky RunEngine documents to write as SPEC data
     
-    This gathers data form all documents and writes the file when the 
-    "stop" document is received.  Only one scan is written to a data file.
-    A flag could be added to the callback to write more than one scan 
-    to a single data file.
+    This gathers data from all documents and writes the file when the 
+    *stop* document is received.  Only one scan is written to a data 
+    file now.  (An upgrade would be to add a flag to the callback 
+    to write more than one scan to a single data file.)
     
-    EXAMPLE::
-    
-        specwriter = SpecWriterCallback(path)
-        RE.subscribe(specwriter.receiver)
+    Parameters
+    ----------
+    path : string, optional
+        The directory in which to write SPEC data files.
+        If path = None (or not specified), then the current 
+        working directory (`os.getcwd()`) will be used.
+    auto_write : boolean, optional
+        If True (default), `write_file()` is called when *stop* document 
+        is received.
+        If False, the caller is responsible for calling `write_file()`.
 
     """
     
@@ -34,6 +67,7 @@ class SpecWriterCallback(object):
         self.uid_short_length = 8
 
     def clear(self):
+        """reset all scan data defaults"""
         self.uid = None
         self.spec_filename = None   # TODO: refactor into a header class
         self.spec_epoch = None      # for both #E & #D line in header, also offset for all scans
@@ -46,6 +80,11 @@ class SpecWriterCallback(object):
         self.metadata = OrderedDict()       # #MD lines in header
         self.motors = OrderedDict()         # names of motors in the scan
         self.positioners = OrderedDict()    # names in #O, values in #P
+        #
+        # note: for one scan, #O & #P information is not provided
+        # unless collecting baseline data
+        # TODO: show case for baseline data that needs #O/#P lines
+        #
         self.columns = OrderedDict()        # #L in scan
         self.scan_command = None            # #S line
 
@@ -61,26 +100,32 @@ class SpecWriterCallback(object):
         if key in xref:
             xref[key](document)
         else:
-            print("custom_callback encountered:", key, document)
+            msg = "custom_callback encountered: {} : {}".format(key, document)
+            # raise ValueError(msg)
+            print(msg)
         return
     
     def start(self, doc):
+        """handle *start* documents"""
+        
         known_properties = """
             uid time project sample scan_id group owner
             detectors hints
             plan_type plan_name plan_args
         """.split()
 
-        #print("start", doc["uid"])
         self.clear()
         self.uid = doc["uid"]
         self.spec_filename = self._build_file_name(doc)
         self.time = doc["time"]
         self.spec_epoch = int(self.time)
         self.spec_comment = "BlueSky  uid = " + self.uid
-        self.T_or_M = "T"           # TODO: how to get this from the document stream?
-        self.T_or_M_value = 1
-        self.comments["start"].append("!!! #T line must be fixed !!!")
+        # Which reference? fixed counting time or fixed monitor count?
+        # Can this be omitted?
+        self.T_or_M = None          # for now
+        #self.T_or_M = "T"           # TODO: how to get this from the document stream?
+        #self.T_or_M_value = 1
+        self.comments["start"].append("!!! #T line not correct yet !!!")
         dt = datetime.datetime.fromtimestamp(self.time)
         self.comments["start"].append("time = " + str(dt))
         
@@ -100,12 +145,14 @@ class SpecWriterCallback(object):
         self.scan_command = self._rebuild_scan_command(doc)
     
     def _build_file_name(self, doc):
+        """create the SPEC data file name"""
         # TODO: better name?
         s = self.uid[:self.uid_short_length]
         s += self.file_suffix
         return s
 
     def _rebuild_scan_command(self, doc):
+        """reconstruct the scan command for SPEC data file #S line"""
         s = str(doc.get("scan_id") or 1)    # TODO: improve the default
         s += "  " + doc.get("plan_name", "") + " "
 
@@ -118,7 +165,11 @@ class SpecWriterCallback(object):
         return s
         
     def descriptor(self, doc):
-        #print("descriptor", doc["uid"])
+        """
+        handle *descriptor* documents
+        
+        prepare for primary scan data, ignore any other data stream
+        """
         if doc["name"] == "primary":        # TODO: general?
             for k in doc["data_keys"].keys():
                 self.data[k] = []
@@ -127,21 +178,28 @@ class SpecWriterCallback(object):
         
             # SPEC data files have implied defaults
             # SPEC default: X axis in 1st column and Y axis in last column
-            where = len(self.motors) > 0
-            self.data.move_to_end("Epoch_float", last=where)
+            _at_last = len(self.motors) > 0
+            self.data.move_to_end("Epoch_float", last=_at_last)
             self.data.move_to_end("Epoch")
+            
+            # TODO: move motors to first
+            # TODO: move detectors to last
+            
             if len(self.motors) > 0:
                 # find 1st motor and move to last
                 motor_name = list(self.motors.keys())[0]
                 self.data.move_to_end(motor_name, last=False)
-            # monitor (detector) in next to last position but how can we get that name here?
+            # monitor (detector) in next to last position 
+            # but how can we get that name here?
             if len(self.detectors) > 0:
                 # find 1st detector and move to last
                 det_name = list(self.detectors.keys())[0]
                 self.data.move_to_end(det_name)
 
     def event(self, doc):
-        #print("event", doc["uid"])
+        """
+        handle *event* documents
+        """
         for k in self.data.keys():
             if k == "Epoch":
                 v = int(doc["time"] - self.time)
@@ -152,11 +210,11 @@ class SpecWriterCallback(object):
             self.data[k].append(v)
     
     def bulk_events(self, doc):
-        #print("bulk_events", doc["uid"])
+        """handle *bulk_events* documents"""
         pass
     
     def stop(self, doc):
-        #print("stop", doc["uid"])
+        """handle *stop* documents"""
         if "num_events" in doc:
             for k, v in doc["num_events"].items():
                 self.comments["stop"].append("num_events_{} = {}".format(k, v))
@@ -172,6 +230,11 @@ class SpecWriterCallback(object):
             self.write_file()
 
     def write_file(self):
+        """
+        write the SPEC data file
+        
+        buffer all content in memory before writing the file
+        """
         dt = datetime.datetime.fromtimestamp(self.spec_epoch)
         lines = []
         lines.append("#F " + self.spec_filename)
@@ -180,14 +243,16 @@ class SpecWriterCallback(object):
         lines.append("#C " + self.spec_comment)
         # TODO: #O line(s)
         for k, v in self.metadata.items():
-            lines.append("#MD {} = {}".format(k, v))    # "#MD" is our ad hoc SPEC data tag
+            # "#MD" is our ad hoc SPEC data tag
+            lines.append("#MD {} = {}".format(k, v))
 
         lines.append("")
         lines.append("#S " + self.scan_command)
         lines.append("#D " + datetime.datetime.strftime(dt, "%c"))
-        lines.append("#{} {}".format(self.T_or_M, self.T_or_M_value))
-        self.T_or_M = "T"           # TODO: how to get this from the document stream?
-        self.T_or_M_value = 1
+        if self.T_or_M is not None:
+            lines.append("#{} {}".format(self.T_or_M, self.T_or_M_value))
+            self.T_or_M = "T"
+            self.T_or_M_value = 1
 
         # TODO: #P line(s)
         for v in self.comments["start"]:
@@ -208,7 +273,6 @@ class SpecWriterCallback(object):
         for v in self.comments["stop"]:
             lines.append("#C " + v)
 
-        #print("\n".join(lines))
         fname = os.path.join(self.path, self.spec_filename)
         with open(fname, "w") as f:
             f.write("\n".join(lines))
