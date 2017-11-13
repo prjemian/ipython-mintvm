@@ -73,8 +73,8 @@ class MyCallback0MQ(object):
             self.talker.send_string("image")
             self.talker.send(self.detector.image)
 
-try:
-    zmq_talker = MyCallback0MQ(detector=plainsimdet.image)
-    callback_db['zmq_talker'] = RE.subscribe(zmq_talker.receiver)
-except Exception:
-    pass
+#try:
+#    zmq_talker = MyCallback0MQ(detector=plainsimdet.image)
+#    callback_db['zmq_talker'] = RE.subscribe(zmq_talker.receiver)
+#except Exception:
+#    pass
