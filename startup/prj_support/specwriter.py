@@ -91,6 +91,7 @@ class SpecWriterCallback(object):
         self.metadata = OrderedDict()       # #MD lines in header
         self.motors = OrderedDict()         # names of motors in the scan
         self.positioners = OrderedDict()    # names in #O, values in #P
+        self.num_primary_data = 0
         #
         # note: for one scan, #O & #P information is not provided
         # unless collecting baseline data
@@ -212,6 +213,7 @@ class SpecWriterCallback(object):
         """
         handle *event* documents
         """
+        # check the desccriptor for "primary"
         for k in self.data.keys():
             if k == "Epoch":
                 v = int(doc["time"] - self.time)
@@ -220,6 +222,7 @@ class SpecWriterCallback(object):
             else:
                 v = doc["data"][k]
             self.data[k].append(v)
+        self.num_primary_data += 1
     
     def bulk_events(self, doc):
         """handle *bulk_events* documents"""
@@ -243,10 +246,11 @@ class SpecWriterCallback(object):
 
     def write_file(self):
         lines = self.prepare_file_contents()
-        fname = os.path.join(self.path, self.spec_filename)
-        with open(fname, "w") as f:
-            f.write("\n".join(lines))
-            print("wrote SPEC file: " + fname)
+        if lines is not None:
+            fname = os.path.join(self.path, self.spec_filename)
+            with open(fname, "w") as f:
+                f.write("\n".join(lines))
+                print("wrote SPEC file: " + fname)
 
     def prepare_file_contents(self):
         """
@@ -254,6 +258,9 @@ class SpecWriterCallback(object):
         
         buffer all content in memory before writing the file
         """
+        if self.num_primary_data == 0:
+            print("SPEC writer: No data to be written")
+            return
         dt = datetime.datetime.fromtimestamp(self.spec_epoch)
         lines = []
         lines.append("#F " + self.spec_filename)
@@ -261,9 +268,6 @@ class SpecWriterCallback(object):
         lines.append("#D " + datetime.datetime.strftime(dt, "%c"))
         lines.append("#C " + self.spec_comment)
         # TODO: #O line(s)
-        for k, v in self.metadata.items():
-            # "#MD" is our ad hoc SPEC data tag
-            lines.append("#MD {} = {}".format(k, v))
 
         lines.append("")
         lines.append("#S " + self.scan_command)
@@ -276,13 +280,16 @@ class SpecWriterCallback(object):
         # TODO: #P line(s)
         for v in self.comments["start"]:
             lines.append("#C " + v)
-        n = len(self.data["Epoch"])
         for v in self.comments["descriptor"]:
             lines.append("#C " + v)
 
-        lines.append("#N " + str(n))
+        for k, v in self.metadata.items():
+            # "#MD" is our ad hoc SPEC data tag
+            lines.append("#MD {} = {}".format(k, v))
+
+        lines.append("#N " + str(self.num_primary_data))
         lines.append("#L " + "  ".join(self.data.keys()))
-        for i in range(n):
+        for i in range(self.num_primary_data):
             s = [str(self.data[k][i]) for k in self.data.keys()]
             lines.append(" ".join(s))
 
