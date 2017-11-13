@@ -15,6 +15,17 @@ EXAMPLE : use as writer from Databroker::
     for key, doc in db.get_documents(db[-1]):
         specwriter.receiver(key, doc)
 
+EXAMPLE : use as writer from Databroker with customizations::
+
+    from specwriter import SpecWriterCallback
+    specwriter = SpecWriterCallback(path="/tmp", auto_write=False)
+    for key, doc in db.get_documents(db[-1]):
+        specwriter.receiver(key, doc)
+    # write into file: /tmp/cerium.spec
+    specwriter.spec_filename = "cerium"
+    specwriter.file_suffix = ".spec"
+    specwriter.write_file()
+
 """
 
 
@@ -69,7 +80,7 @@ class SpecWriterCallback(object):
     def clear(self):
         """reset all scan data defaults"""
         self.uid = None
-        self.spec_filename = None   # TODO: refactor into a header class
+        self.spec_filename = None
         self.spec_epoch = None      # for both #E & #D line in header, also offset for all scans
         self.time = None            # full time from document
         self.spec_comment = None    # for first #C line in header
@@ -139,30 +150,31 @@ class SpecWriterCallback(object):
             if item in doc:
                 obj = self.__getattribute__(item)
                 for key in doc.get(item):
-                    obj[key] = None         # TODO: get the contents
+                    obj[key] = None
         
         self.comments["start"].insert(0, "plan_type = " + doc["plan_type"])
         self.scan_command = self._rebuild_scan_command(doc)
     
     def _build_file_name(self, doc):
         """create the SPEC data file name"""
-        # TODO: better name?
+        # example shows how to override with a custom name
         s = self.uid[:self.uid_short_length]
         s += self.file_suffix
         return s
 
     def _rebuild_scan_command(self, doc):
         """reconstruct the scan command for SPEC data file #S line"""
-        s = str(doc.get("scan_id") or 1)    # TODO: improve the default
-        s += "  " + doc.get("plan_name", "") + " "
-
-        # FIXME: too much content, use names only for detectors and motors
-        obj = doc["plan_args"]
-        s += "[" + " ".join(obj["detectors"]) + "]"
-        for k, v in obj.items():
-            if k not in ("detectors",):
-                s += " " + k + "=" + str(v)   # FIXME: not general, not at all
-        return s
+        s = []
+        for _k, _v in doc['plan_args'].items():
+            if _k == "detectors":
+                _v = doc[_k]
+            elif _k.startswith("motor"):
+                _v = doc["motors"]
+            s.append("{}={}".format(_k, _v))
+        
+        cmd = "{}({})".format(doc.get("plan_name", ""), ", ".join(s))
+        scan_id = doc.get("scan_id") or 1    # TODO: improve the default
+        return "{}  {}".format(scan_id, cmd)
         
     def descriptor(self, doc):
         """
@@ -170,7 +182,7 @@ class SpecWriterCallback(object):
         
         prepare for primary scan data, ignore any other data stream
         """
-        if doc["name"] == "primary":        # TODO: general?
+        if doc["name"] == "primary":        # general?
             for k in doc["data_keys"].keys():
                 self.data[k] = []
             self.data["Epoch"] = []
@@ -230,6 +242,13 @@ class SpecWriterCallback(object):
             self.write_file()
 
     def write_file(self):
+        lines = self.prepare_file_contents()
+        fname = os.path.join(self.path, self.spec_filename)
+        with open(fname, "w") as f:
+            f.write("\n".join(lines))
+            print("wrote SPEC file: " + fname)
+
+    def prepare_file_contents(self):
         """
         write the SPEC data file
         
@@ -272,8 +291,5 @@ class SpecWriterCallback(object):
 
         for v in self.comments["stop"]:
             lines.append("#C " + v)
-
-        fname = os.path.join(self.path, self.spec_filename)
-        with open(fname, "w") as f:
-            f.write("\n".join(lines))
-            print("wrote SPEC file: " + fname)
+        
+        return lines
