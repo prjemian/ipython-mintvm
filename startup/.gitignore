@@ -1,8 +1,0 @@
-
-db/
-log/
-pid/
-security/
-__pycache__/
-*.pyc
-
