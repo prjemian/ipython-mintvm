@@ -44,7 +44,8 @@ doc_collector = MyDocumentCollector()
 callback_db['doc_collector'] = RE.subscribe(doc_collector.receiver)
 
 
-from prj_support.zmq_pair import ZMQ_Pair
+from APS_BlueSky_tools.zmq_pair import ZMQ_Pair
+
 
 class MyCallback0MQ(object):
     """
