@@ -4,13 +4,16 @@ print(__file__)
 
 if False:       # demo & testing code
     simulate_peak(calc1, m1, profile="lorentzian")
-    RE(tune_centroid([noisy], "noisy", m1, -2, 0, 0.00001, 10))
+    RE(bp.tune_centroid([noisy], "noisy", m1, -2, 0, 0.00001, 10, snake=True))
     
     RE(
-        tune_centroid(
+        bp.tune_centroid(
             [synthetic_pseudovoigt], "synthetic_pseudovoigt", m1, 
-            -2, 0, 0.00001, 10
-        )
+            -2, 0, 0.00001, 10, snake=True
+        ),
+        # these two styles go to the LivePlot()
+        # linestyle="none",
+        # marker="o",
     )
     RE(
         bp.adaptive_scan(
