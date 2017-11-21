@@ -1,5 +1,6 @@
 print(__file__)
 
+
 def simulate_peak(swait, motor, profile=None, start=-1.5, stop=-0.5):
     if profile is not None:
         simulator = dict(
@@ -24,6 +25,7 @@ def both_peaks(calc=None, dets=None, motor=None):
     yield from bp.scan(dets, motor, start, stop, 219)
     simulate_peak(calc, motor, profile="lorentzian")
     yield from bp.scan(dets, motor, start, stop, 219)
+
 
 calcs = EpicsUserCalcsDevice("prj:", name="calc")
 scans = EpicsSscanDevice("prj:", name="scans")
