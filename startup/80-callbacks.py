@@ -2,49 +2,18 @@ print(__file__)
 
 # custom callbacks
 
-
-class MyDocumentCollector(object):
-    """
-    My BlueSky support to collect *all* documents from most-recent plan
-    """
-    data_event_names = "descriptor event bulk_events".split()
-    
-    def __init__(self):
-        self.documents = {}     # key: name, value: document
-        self.uids = []          # chronological list of UIDs as-received
-
-    def receiver(self, key, document):
-        """keep all documents from recent plan in memory"""
-        if "uid" in document:
-            self.uids.append(document["uid"])
-        if key == "start":
-            self.documents = {key: document}
-        elif key in self.data_event_names:
-            if key not in self.documents:
-                self.documents[key] = []
-            self.documents[key].append(document)
-        elif key == "stop":
-            self.documents[key] = document
-            print("exit status:", document["exit_status"])
-            for item in self.data_event_names:
-                if item in self.documents:
-                    print(
-                        "# {}(s):".format(item), 
-                        len(self.documents[item])
-                    )
-        else:
-            print("custom_callback encountered:", key, document)
-            if key not in self.documents:
-                self.documents[key] = []
-            self.documents[key].append(document)
-        return
+import APS_BlueSky_tools.callbacks
+import APS_BlueSky_tools.filewriters
+from APS_BlueSky_tools.zmq_pair import ZMQ_Pair
 
 
-doc_collector = MyDocumentCollector()
+doc_collector = APS_BlueSky_tools.callbacks.DocumentCollectorCallback()
 callback_db['doc_collector'] = RE.subscribe(doc_collector.receiver)
 
+specwriter = APS_BlueSky_tools.filewriters.SpecWriterCallback()
+specwriter.newfile(os.path.join("/tmp", specwriter.spec_filename))
+callback_db['specwriter'] = RE.subscribe(specwriter.receiver)
 
-from APS_BlueSky_tools.zmq_pair import ZMQ_Pair
 
 
 class MyCallback0MQ(object):
