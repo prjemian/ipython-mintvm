@@ -27,8 +27,8 @@ def both_peaks(calc=None, dets=None, motor=None):
     yield from bp.scan(dets, motor, start, stop, 219)
 
 
-calcs = EpicsUserCalcsDevice("prj:", name="calc")
-scans = EpicsSscanDevice("prj:", name="scans")
+calcs = userCalcsDevice("prj:", name="calc")
+scans = sscanDevice("prj:", name="scans")
 
 calc1 = calcs.calc1
 calcs.enable.put("Enable")

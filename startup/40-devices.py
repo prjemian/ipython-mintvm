@@ -15,4 +15,4 @@ print(__file__)
 
 #slit1 = XY_Slit()
 
-from synApps_ophyd import *
+from APS_BlueSky_tools.synApps_ophyd import *
