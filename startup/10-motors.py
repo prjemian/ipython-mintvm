@@ -115,4 +115,7 @@ m6 = EpicsMotor('prj:m6', name='m6')
 m7 = EpicsMotor('prj:m7', name='m7')
 m8 = EpicsMotor('prj:m8', name='m8')
 
+# seed wa magic command
+BlueskyMagics.positioners += [m1, m2, m3, m4, m5, m6, m7, m8]
+
 m1flyer = EpicsMotorFlyer('prj:m1', name='m1flyer')

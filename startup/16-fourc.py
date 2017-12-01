@@ -44,7 +44,7 @@ def fourc_example():
     see: http://www.rigaku.com/downloads/journal/Vol16.1.1999/cguide.pdf
     """
     
-    BlueskyMagics.positioners = list(fourc.real_positioners)
+    BlueskyMagics.positioners += list(fourc.real_positioners)
     BlueskyMagics.positioners += list(fourc.pseudo_positioners)
     
     fourc.calc.new_sample('Mn3O4 thin film', mn3o4_lattice)
