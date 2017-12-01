@@ -89,45 +89,50 @@ for axis, constraints in tardis_constraints.items():
 
 
 
-"""
-See https://github.com/NSLS-II/hklpy/tree/master/examples
-for jupyter notebooks with tardis in the E6C geometry.
+def demo_tardis():
+    """
+    See https://github.com/NSLS-II/hklpy/tree/master/examples
+    for jupyter notebooks with tardis in the E6C geometry.
+    """
 
-add a sample to the calculation engine (lengths are 
-in angstroms, angles are in degrees)::
+    BlueskyMagics.positioners += list(fourc.real_positioners)
+    BlueskyMagics.positioners += list(fourc.pseudo_positioners)
+
+    # add a sample to the calculation engine (lengths are 
+    # in angstroms, angles are in degrees)::
 
     tardis.calc.new_sample('esrf_sample', 
         lattice=Lattice(
             a=9.069, b=9.069, c=10.390, 
             alpha=90.0, beta=90.0, gamma=120.0))
 
-define the wavelength (angstrom)::
+    # define the wavelength (angstrom)::
 
     tardis.calc.wavelength = 1.61198
 
 
-alternatively, set the energy on the Tardis instance::
+    # alternatively, set the energy on the Tardis instance::
 
     # tardis.energy.put(12.3984244 / 1.61198)
 
 
-test computed real positions against the table below
+    #test computed real positions against the table below
 
-===========  ==========  == == == ======== ======== ===  ===  =====  =========
-basis        wavelength  h  k  l  delta    theta    chi  phi  omega  gamma
-===========  ==========  == == == ======== ======== ===  ===  =====  =========
-known        1.61198     3  3  0  64.449   25.285   0    0    0      -0.871
-known        1.61198     5  2  0  79.712   46.816   0    0    0      -1.374
-experiment   1.61198     4  4  0  90.628   38.373   0    0    0      -1.156
-experiment   1.61198     4  1  0  56.100   40.220   0    0    0      -1.091
-experiment   1.60911     6  0  0  75.900   61.000   0    0    0      -1.637
-experiment   1.60954     3  2  0  53.090   26.144   0    0    0      -.933
-experiment   1.60954     5  4  0  106.415  49.900   0    0    0      -1.535
-experiment   1.60954     4  5  0  106.403  42.586   0    0    0      -1.183
-===========  ==========  == == == ======== ======== ===  ===  =====  =========
+    #===========  ==========  == == == ======== ======== ===  ===  =====  =========
+    #basis        wavelength  h  k  l  delta    theta    chi  phi  omega  gamma
+    #===========  ==========  == == == ======== ======== ===  ===  =====  =========
+    #known        1.61198     3  3  0  64.449   25.285   0    0    0      -0.871
+    #known        1.61198     5  2  0  79.712   46.816   0    0    0      -1.374
+    #experiment   1.61198     4  4  0  90.628   38.373   0    0    0      -1.156
+    #experiment   1.61198     4  1  0  56.100   40.220   0    0    0      -1.091
+    #experiment   1.60911     6  0  0  75.900   61.000   0    0    0      -1.637
+    #experiment   1.60954     3  2  0  53.090   26.144   0    0    0      -.933
+    #experiment   1.60954     5  4  0  106.415  49.900   0    0    0      -1.535
+    #experiment   1.60954     4  5  0  106.403  42.586   0    0    0      -1.183
+    #===========  ==========  == == == ======== ======== ===  ===  =====  =========
 
 
-Orient the sample on the diffractometer (set up the UB matrix)::
+    #Orient the sample on the diffractometer (set up the UB matrix)::
 
     r1 = tardis.calc.sample.add_reflection(
         3, 3, 0,
@@ -143,7 +148,7 @@ Orient the sample on the diffractometer (set up the UB matrix)::
             gamma=-1.374))
     tardis.calc.sample.compute_UB(r1, r2)
 
-Test the orientation::
+    # Test the orientation::
 
     print(tardis.calc.forward((4,4,0)))
     print(tardis.calc.forward((4,1,0)))
@@ -152,19 +157,17 @@ Test the orientation::
     print("motors at (330)", tardis.calc.forward((3, 3, 0)))
     print("motors at (520)", tardis.calc.forward((5, 2, 0)))
 
-Move to (hkl) (note: the first solution if multiple are found)::
+    # Move to (hkl) (note: the first solution if multiple are found)::
 
     tardis.move(3, 3, 0)
 
-Scan by mu::
+    # Scan by mu:
 
     RE(bp.scan([scaler, tardis.h, tardis.k, tardis.l, ], tardis.mu, 5, 35, 51))
 
-Scan by h::
+    # Scan by h:
 
     RE(bp.scan([scaler, tardis.h, tardis.k, tardis.l, ], tardis.h, 3, 5, 11))
 
-
-    >>> wa(list(tardis.real_positioners) + list(tardis.pseudo_positioners))
-
-"""
+    # print all the positions
+    wa
