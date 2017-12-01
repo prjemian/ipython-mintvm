@@ -15,12 +15,12 @@ noisy = EpicsSignalRO('prj:userCalc1', name='noisy')
 scaler = EpicsScaler('prj:scaler1', name='scaler')
 
 
-synthetic_pseudovoigt = SynPseudoVoigt(
-    'synthetic_pseudovoigt', m1, 'm1', 
+spvoigt = SynPseudoVoigt(
+    'spvoigt', m1, 'm1', 
     center=-1.5 + 0.5*np.random.uniform(), 
     eta=0.2 + 0.5*np.random.uniform(), 
     sigma=0.001 + 0.05*np.random.uniform(), 
     scale=1e5,
     bkg=0.01*np.random.uniform())
 
-#  RE(bp.scan([synthetic_pseudovoigt], m1, -2, 0, 219))
+#  RE(bp.scan([spvoigt], m1, -2, 0, 219))
