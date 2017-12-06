@@ -47,9 +47,10 @@ try:
     simdet.hdf1.read_attrs.append("full_file_name")
 
     plainsimdet = MyPlainSimDetector('13SIM1:', name='plainsimdet')
-    plainsimdet.read_attrs = ['cam']
+    plainsimdet.read_attrs = ['cam', 'image']
     # https://github.com/BCDA-APS/APS_BlueSky_tools/issues/9
-    plainsimdet.cam.read_attrs = ['array_counter']
+    plainsimdet.cam.read_attrs = []
+    plainsimdet.image.read_attrs = ['array_counter']
 
 except TimeoutError:
     print("Could not connect 13SIM1: sim detector")
@@ -66,3 +67,12 @@ example::
         print(ev["data"][simdet.hdf1.name+"_full_file_name"])
 
 """
+
+def ad_continuous_setup(
+        det, 
+        acq_time=0.1, 
+        acq_period=0.005):
+    det.cam.acquire_time.put(acq_time)
+    det.cam.acquire_period.put(acq_period)
+    det.cam.image_mode.put("Continuous")
+    # TODO: how to trigger in BlueSky?
