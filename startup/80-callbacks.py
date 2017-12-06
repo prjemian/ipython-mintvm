@@ -17,7 +17,7 @@ print("SPEC data file:", specwriter.spec_filename)
 
 
 
-class MyCallback0MQ(object):
+class MonaCallback0MQ(object):
     """
     My BlueSky 0MQ talker to send *all* documents emitted
     """
@@ -27,24 +27,25 @@ class MyCallback0MQ(object):
         self.detector = detector
     
     def end(self):
-        self.talker.send_string(self.talker.eot_signal_text.decode())
+        """ZMQ client tells the server to end the connection"""
+        self.talker.end()
 
     def receiver(self, key, document):
         """receive from RunEngine, send from 0MQ talker"""
-        self.talker.send_string(key)
-        self.talker.send_string(document)
-        if key == "event" and self.detector is not None:
-            # Is it faster to pick this up by EPICS CA?
-            # Using 0MQ, no additional library is needed
-            self.talker.send_string("rank")
-            self.talker.send_string(str(len(self.detector.image.shape)))
-            self.talker.send_string("shape")
-            self.talker.send_string(str(self.detector.image.shape))
-            self.talker.send_string("image")
-            self.talker.send(self.detector.image)
+        mona_zmq_sender(self.talker, key, document, self.detector)
 
-#try:
-#    zmq_talker = MyCallback0MQ(detector=plainsimdet.image)
-#    callback_db['zmq_talker'] = RE.subscribe(zmq_talker.receiver)
-#except Exception:
-#    pass
+
+def demo_start_mona_callback_as_zmq_client():
+    """
+    show how to use this code with the MONA project
+    First: be sure the ZMQ server code is already running (outside of BlueSky).
+    Then, run this code.  If the server is not running, this code may fail.
+    """
+    for key in "doc_collector specwriter zmq_talker".split():
+        if key in callback_db:
+            RE.unsubscribe(callback_db[key])
+            del callback_db[key]
+    zmq_talker = MonaCallback0MQ(detector=plainsimdet.image)
+    callback_db['zmq_talker'] = RE.subscribe(zmq_talker.receiver)
+    RE(bp.count([plainsimdet], num=2))
+    return zmq_talker
