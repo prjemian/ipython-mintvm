@@ -4,7 +4,7 @@ print(__file__)
 
 import APS_BlueSky_tools.callbacks
 import APS_BlueSky_tools.filewriters
-from APS_BlueSky_tools.zmq_pair import ZMQ_Pair
+from APS_BlueSky_tools.zmq_pair import ZMQ_Pair, mona_zmq_sender
 
 
 doc_collector = APS_BlueSky_tools.callbacks.DocumentCollectorCallback()
