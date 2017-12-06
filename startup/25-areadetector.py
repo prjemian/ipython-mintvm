@@ -48,6 +48,8 @@ try:
 
     plainsimdet = MyPlainSimDetector('13SIM1:', name='plainsimdet')
     plainsimdet.read_attrs = ['cam']
+    # https://github.com/BCDA-APS/APS_BlueSky_tools/issues/9
+    plainsimdet.cam.read_attrs = ['array_counter']
 
 except TimeoutError:
     print("Could not connect 13SIM1: sim detector")
