@@ -1,7 +1,6 @@
 print(__file__)
 
-from ophyd import SingleTrigger, AreaDetector, SimDetector
-from ophyd.areadetector.plugins import HDF5Plugin, ImagePlugin
+from ophyd import SingleTrigger, AreaDetector, SimDetector, HDF5Plugin, ImagePlugin
 from ophyd.areadetector.trigger_mixins import SingleTrigger
 from ophyd.areadetector.filestore_mixins import FileStoreHDF5IterativeWrite
 from ophyd import Component, Device, EpicsSignalWithRBV
@@ -30,10 +29,10 @@ class MyHdf5Detector(SimDetector, SingleTrigger):
         reg=db.reg
     )
 
-
-class MyPlainSimDetector(SimDetector, SingleTrigger):
+# trigger first, then base class
+# otherwise, cannot use continuous mode for detector
+class MyPlainSimDetector(SingleTrigger, SimDetector):
     image = Component(ImagePlugin, suffix="image1:")
-    
 
 try:
 
@@ -46,11 +45,14 @@ try:
     simdet.hdf1.read_attrs.append("file_path")
     simdet.hdf1.read_attrs.append("full_file_name")
 
-    plainsimdet = MyPlainSimDetector('13SIM1:', name='plainsimdet')
-    plainsimdet.read_attrs = ['cam', 'image']
+    adsimdet = MyPlainSimDetector(
+        '13SIM1:', 
+        name='adsimdet',
+        read_attrs=['cam', 'image'])
+    # adsimdet.read_attrs = ['cam', 'image']
     # https://github.com/BCDA-APS/APS_BlueSky_tools/issues/9
-    plainsimdet.cam.read_attrs = []
-    plainsimdet.image.read_attrs = ['array_counter']
+    adsimdet.cam.read_attrs = []
+    adsimdet.image.read_attrs = ['array_counter']
 
 except TimeoutError:
     print("Could not connect 13SIM1: sim detector")
