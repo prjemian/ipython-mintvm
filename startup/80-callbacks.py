@@ -41,11 +41,21 @@ def demo_start_mona_callback_as_zmq_client():
     First: be sure the ZMQ server code is already running (outside of BlueSky).
     Then, run this code.  If the server is not running, this code may fail.
     """
-    for key in "doc_collector specwriter zmq_talker".split():
+    for key in "doc_collector specwriter zmq_talker BestEffortCallback".split():
         if key in callback_db:
             RE.unsubscribe(callback_db[key])
             del callback_db[key]
-    zmq_talker = MonaCallback0MQ(detector=plainsimdet.image)
+    zmq_talker = MonaCallback0MQ(detector=adsimdet.image)
     callback_db['zmq_talker'] = RE.subscribe(zmq_talker.receiver)
-    RE(bp.count([plainsimdet], num=2))
+    
+    calc2 = calcs.calc2
+    swait_setup_incrementer(calc1)
+    swait_setup_random_number(calc2)
+    ad_continuous_setup(adsimdet, acq_time=0.05)
+    scaler.preset_time.put(0.5)
+    RE(
+        bpp.monitor_during_wrapper(
+            bp.count([adsimdet], num=3), 
+            [calc1.val, calc2.val]))
+
     return zmq_talker
