@@ -22,6 +22,7 @@ install_qt_kicker()
 from bluesky.callbacks import *
 from bluesky.plan_tools import print_summary
 import bluesky.plans as bp
+import bluesky.preprocessors as bpp
 from time import sleep
 import numpy as np
 
