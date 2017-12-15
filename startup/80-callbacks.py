@@ -5,6 +5,7 @@ print(__file__)
 import APS_BlueSky_tools.callbacks
 import APS_BlueSky_tools.filewriters
 from APS_BlueSky_tools.zmq_pair import ZMQ_Pair, mona_zmq_sender
+import bluesky.plan_stubs as bps
 
 
 doc_collector = APS_BlueSky_tools.callbacks.DocumentCollectorCallback()
@@ -36,11 +37,87 @@ class MonaCallback0MQ(object):
         mona_zmq_sender(self.talker, key, document, self.detector, self.signal_name)
 
 
-def demo_start_mona_callback_as_zmq_client():
+def demo_mona_count():
     """
-    show how to use this code with the MONA project
+    show how to use stream an image signal for MONA via 0MQ
+    """
+    calc2 = calcs.calc2
+    swait_setup_incrementer(calc1)
+    swait_setup_random_number(calc2)
+    ad_continuous_setup(adsimdet, acq_time=0.1)
+    scaler.preset_time.put(0.5)
+    scaler.channels.read_attrs = ['chan1', 'chan2', 'chan3', 'chan6']
+    adsimdet.stage_sigs.update({'cam.image_mode': 'Continuous'})
+
+    staged_device_list = [adsimdet]
+    monitored_signals_list = [
+        adsimdet.image.array_counter, 
+        calc1.val, 
+        calc2.val, 
+        m1.user_readback,
+        ]
+    
+    @bpp.stage_decorator(staged_device_list)
+    @bpp.monitor_during_decorator(monitored_signals_list)
+    def mona_core(detectors, acquire, num=1):
+        yield from bps.trigger(adsimdet, wait=False)
+        yield from bp.count(detectors, num=num)
+    
+    RE(mona_core([scaler], adsimdet.cam.acquire, num=3))
+
+
+def demo_mona_motor_scan(detectors, area_det, motor, start, finish, num=10, md={}):
+    """
+    show how to use a motor and stream an image signal for MONA via 0MQ
+    
+    EXAMPLE:
+    
+        zmq_talker = demo_setup_mona_callback_as_zmq_client()
+        demo_mona_motor_scan([scaler], adsimdet, m1, -1, 0, num=1)
+    
+    """
+    ad_continuous_setup(area_det, acq_time=0.1)
+    scaler.preset_time.put(0.5)
+    scaler.channels.read_attrs = ['chan1', 'chan2', 'chan3', 'chan6']
+    area_det.stage_sigs.update({'cam.image_mode': 'Continuous'})
+
+    monitored_signals_list = [
+        area_det.image.array_counter, 
+        motor.user_readback,
+        ]
+    staged_device_list = [area_det]
+    
+    metadata = dict(
+        demo="MONA motor scan",
+        purpose="development",
+    )
+    metadata.update(md)
+    
+    @bpp.stage_decorator(staged_device_list)
+    @bpp.monitor_during_decorator(monitored_signals_list)
+    def mona_core(detector_list, acquire, num=1):
+        yield from bps.trigger(area_det, wait=False)
+        yield from bp.scan(detector_list, motor, start, finish, num=num)
+    
+    RE(mona_core(detectors, adsimdet.cam.acquire, num=3), md=metadata)
+
+
+def demo_setup_mona_callback_as_zmq_client():
+    """
+    Prepapre to demo the MONA 0MQ callback chain
+
     First: be sure the ZMQ server code is already running (outside of BlueSky).
-    Then, run this code.  If the server is not running, this code may fail.
+    Clear out any existing BlueSky setup we don't want now.
+    
+    EXAMPLE::
+    
+        zmq_talker = demo_setup_mona_callback_as_zmq_client()
+        
+        # ... use the queue
+        
+        zmq_talker.end()
+        exit   # end the ipython BlueSky session
+    
     """
     for key in "doc_collector specwriter zmq_talker BestEffortCallback".split():
         if key in callback_db:
@@ -50,25 +127,4 @@ def demo_start_mona_callback_as_zmq_client():
         detector=adsimdet.image,
         signal_name=adsimdet.image.array_counter.name)
     callback_db['zmq_talker'] = RE.subscribe(zmq_talker.receiver)
-    
-    calc2 = calcs.calc2
-    swait_setup_incrementer(calc1)
-    swait_setup_random_number(calc2)
-    ad_continuous_setup(adsimdet, acq_time=0.1)
-    scaler.preset_time.put(0.5)
-    scaler.channels.read_attrs = ['chan1', 'chan2', 'chan3', 'chan6']
-    # plan = bp.count([adsimdet], num=3)
-    # monitors = [calc1.val, calc2.val]
-
-    plan = bp.count([scaler], num=3)
-    monitors = [adsimdet.image.array_counter, calc1.val, calc2.val]
-    
-    @bpp.monitor_during_decorator(monitors)
-    def _the_plan(detectors, acquire, num=1):
-        acquire.put(1)
-        yield from bp.count(detectors, num=num)
-        acquire.put(0)
-    
-    RE(_the_plan([scaler], adsimdet.cam.acquire, num=3))
-
     return zmq_talker
