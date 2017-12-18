@@ -112,7 +112,7 @@ def demo_mona_motor_scan(detectors, area_det, motor, start, finish, num=10, md={
         yield from bps.trigger(area_det, wait=False)
         yield from bp.scan(detector_list, motor, start, finish, num=num)
     
-    RE(mona_core(detectors, adsimdet.cam.acquire, num=3), md=metadata)
+    RE(mona_core(detectors, adsimdet.cam.acquire, num=num), md=metadata)
 
 
 def demo_setup_mona_callback_as_zmq_client(host=None):
