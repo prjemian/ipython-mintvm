@@ -17,16 +17,18 @@ callback_db['specwriter'] = RE.subscribe(specwriter.receiver)
 print("SPEC data file:", specwriter.spec_filename)
 
 
-
 class MonaCallback0MQ(object):
     """
     My BlueSky 0MQ talker to send *all* documents emitted
     """
     
-    def __init__(self, host=None, port=None, detector=None, signal_name=None):
+    def __init__(self, 
+            host=None, port=None, detector=None, signal_name=None,
+            rotation_name=None):
         self.talker = ZMQ_Pair(host or "localhost", port or "5556")
         self.detector = detector
         self.signal_name = signal_name
+        self.rotation_name = rotation_name
     
     def end(self):
         """ZMQ client tells the server to end the connection"""
@@ -34,7 +36,13 @@ class MonaCallback0MQ(object):
 
     def receiver(self, key, document):
         """receive from RunEngine, send from 0MQ talker"""
-        mona_zmq_sender(self.talker, key, document, self.detector, self.signal_name)
+        mona_zmq_sender(
+            self.talker, 
+            key, 
+            document, 
+            self.detector, 
+            signal_name=self.signal_name,
+            rotation_name=self.rotation_name)
 
 
 def demo_mona_count():
@@ -80,6 +88,11 @@ def demo_mona_motor_scan(detectors, area_det, motor, start, finish, num=10, md={
     scaler.preset_time.put(0.5)
     scaler.channels.read_attrs = ['chan1', 'chan2', 'chan3', 'chan6']
     area_det.stage_sigs.update({'cam.image_mode': 'Continuous'})
+    
+    # this turns the motor speed way down
+    # m1.stage_sigs["velocity"] = 1
+    # this sets it back to normal
+    # m1.velocity = 30
 
     monitored_signals_list = [
         area_det.image.array_counter, 
@@ -102,10 +115,9 @@ def demo_mona_motor_scan(detectors, area_det, motor, start, finish, num=10, md={
     RE(mona_core(detectors, adsimdet.cam.acquire, num=3), md=metadata)
 
 
-def demo_setup_mona_callback_as_zmq_client():
+def demo_setup_mona_callback_as_zmq_client(host=None):
     """
-    Prepapre to demo the MONA 0MQ callback chain
-
+    Prepare to demo the MONA 0MQ callback chain
     First: be sure the ZMQ server code is already running (outside of BlueSky).
     Clear out any existing BlueSky setup we don't want now.
     
@@ -119,12 +131,16 @@ def demo_setup_mona_callback_as_zmq_client():
         exit   # end the ipython BlueSky session
     
     """
-    for key in "doc_collector specwriter zmq_talker BestEffortCallback".split():
+    prune_list = "doc_collector specwriter zmq_talker BestEffortCallback".split()
+    prune_list = "specwriter zmq_talker BestEffortCallback".split()
+    for key in prune_list:
         if key in callback_db:
             RE.unsubscribe(callback_db[key])
             del callback_db[key]
     zmq_talker = MonaCallback0MQ(
         detector=adsimdet.image,
-        signal_name=adsimdet.image.array_counter.name)
+        signal_name=adsimdet.image.array_counter.name,
+        rotation_name=m1.user_readback.name,
+        host=host)
     callback_db['zmq_talker'] = RE.subscribe(zmq_talker.receiver)
     return zmq_talker
