@@ -89,8 +89,9 @@ def demo_mona_motor_scan(detectors, area_det, motor, start, finish, num=10, md={
     scaler.channels.read_attrs = ['chan1', 'chan2', 'chan3', 'chan6']
     area_det.stage_sigs.update({'cam.image_mode': 'Continuous'})
     
-    # this turns the motor speed way down
-    # m1.stage_sigs["velocity"] = 1
+    # this turns the motor speed way down (by 50x)
+    #motor.stage_sigs["velocity"] = motor.velocity.value/50.0
+    motor.stage_sigs["velocity"] = 2
     # this sets it back to normal
     # m1.velocity = 30
 
