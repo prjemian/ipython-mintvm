@@ -34,17 +34,15 @@ class MyHdf5Detector(SimDetector, SingleTrigger):
 class MyPlainSimDetector(SingleTrigger, SimDetector):
     image = Component(ImagePlugin, suffix="image1:")
 
-try:
 
+try:
     simdet = MyHdf5Detector('13SIM1:', name='simdet')
     simdet.read_attrs = ['hdf1', 'cam']
     simdet.hdf1.read_attrs = []  # 'image' *should be* added dynamically
-    # put these things in each event document
-    # only first 3 characters show in the LiveTable callback.  So what?
-    simdet.hdf1.read_attrs.append("file_name")
-    simdet.hdf1.read_attrs.append("file_path")
-    simdet.hdf1.read_attrs.append("full_file_name")
+except TimeoutError as msg:
+    print("Could not connect 13SIM1: simdet detector: ", msg)
 
+try:
     adsimdet = MyPlainSimDetector(
         '13SIM1:', 
         name='adsimdet',
@@ -52,15 +50,12 @@ try:
     # adsimdet.read_attrs = ['cam', 'image']
     # https://github.com/BCDA-APS/APS_BlueSky_tools/issues/9
     adsimdet.cam.read_attrs = []
-    adsimdet.image.read_attrs = ['array_counter']
+    adsimdet.image.read_attrs = ['array_counter']    
+except TimeoutError as msg:
+    print("Could not connect 13SIM1: adsimdet detector: ", msg)
 
-except TimeoutError:
-    print("Could not connect 13SIM1: sim detector")
 
-
-"""
-example::
-
+def demo_count_simdet():
     simdet.describe_configuration()
     RE(bp.count([simdet]))
     cfg = simdet.hdf1.read_configuration()
@@ -68,13 +63,8 @@ example::
     for ev in db[-1].events():
         print(ev["data"][simdet.hdf1.name+"_full_file_name"])
 
-"""
 
-def ad_continuous_setup(
-        det, 
-        acq_time=0.1, 
-        acq_period=0.005):
+def ad_continuous_setup(det, acq_time=0.1, acq_period=0.005):
     det.cam.acquire_time.put(acq_time)
     det.cam.acquire_period.put(acq_period)
     det.cam.image_mode.put("Continuous")
-    # TODO: how to trigger in BlueSky?
