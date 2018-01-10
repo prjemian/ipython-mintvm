@@ -1,6 +1,10 @@
-# mintvm-ipython-profile
+This is the IPython directory.
 
-[BlueSky](https://github.com/NSLS-II/bluesky) ipython profiles on Linux mint VM
+For more information on configuring IPython, do:
 
-This installation is used to develop and test prototypes for eventual
-contribution into some public repository.
+ipython -h
+
+or to create an empty default profile, populated with default config files:
+
+ipython profile create
+
