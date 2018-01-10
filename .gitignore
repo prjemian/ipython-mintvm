@@ -6,3 +6,8 @@ pid/
 security/
 __pycache__
 APS_BlueSky_tools/
+history
+*.pyc
+*.pyo
+*~
+mViewer.log
