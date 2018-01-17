@@ -6,7 +6,6 @@ setup a fourc 4-circle diffractometer
 see: https://github.com/picca/hkl/blob/next/Documentation/sphinx/source/diffractometers/e4cv.rst
 """
 
-import bluesky.magics
 from hkl.util import Lattice
 
 
@@ -17,14 +16,14 @@ MOTOR_PV_TTH = "prj:m12"
 
 
 class Fourc(E4CV):
-    h = Cpt(PseudoSingle, '')
-    k = Cpt(PseudoSingle, '')
-    l = Cpt(PseudoSingle, '')
+    h = Component(PseudoSingle, '')
+    k = Component(PseudoSingle, '')
+    l = Component(PseudoSingle, '')
 
-    omega = Cpt(EpicsMotor, MOTOR_PV_OMEGA)
-    chi =   Cpt(EpicsMotor, MOTOR_PV_CHI)
-    phi =   Cpt(EpicsMotor, MOTOR_PV_PHI)
-    tth =   Cpt(EpicsMotor, MOTOR_PV_TTH)
+    omega = Component(EpicsMotor, MOTOR_PV_OMEGA)
+    chi =   Component(EpicsMotor, MOTOR_PV_CHI)
+    phi =   Component(EpicsMotor, MOTOR_PV_PHI)
+    tth =   Component(EpicsMotor, MOTOR_PV_TTH)
 
 
 fourc = Fourc('', name='fourc')
@@ -44,8 +43,8 @@ def fourc_example():
     see: http://www.rigaku.com/downloads/journal/Vol16.1.1999/cguide.pdf
     """
     
-    BlueskyMagics.positioners += list(fourc.real_positioners)
-    BlueskyMagics.positioners += list(fourc.pseudo_positioners)
+    append_wa_motor_list(*fourc.real_positioners)
+    append_wa_motor_list(*fourc.pseudo_positioners)
     
     fourc.calc.new_sample('Mn3O4 thin film', mn3o4_lattice)
     

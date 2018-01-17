@@ -15,16 +15,8 @@ print(__file__)
 # see: https://github.com/picca/hkl/blob/next/Documentation/sphinx/source/introduction.rst (half-English, half-French)
 
 
-from ophyd import Component as Cpt
 from ophyd import (PseudoSingle, EpicsMotor, SoftPositioner, Signal)
 import gi
 gi.require_version('Hkl', '5.0')
 from hkl.diffract import E6C, E4CH, E4CV
 from ophyd.pseudopos import (pseudo_position_argument, real_position_argument)
-
-
-# TODO: fix upstream!!
-class NullMotor(SoftPositioner):
-    @property
-    def connected(self):
-        return True

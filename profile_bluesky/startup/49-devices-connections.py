@@ -25,14 +25,3 @@ def both_peaks(calc=None, dets=None, motor=None):
     yield from bp.scan(dets, motor, start, stop, 219)
     simulate_peak(calc, motor, profile="lorentzian")
     yield from bp.scan(dets, motor, start, stop, 219)
-
-
-calcs = userCalcsDevice("prj:", name="calc")
-scans = sscanDevice("prj:", name="scans")
-
-calc1 = calcs.calc1
-calcs.enable.put("Enable")
-swait_setup_incrementer(calcs.calc2)
-calcs.calc2.desc.put("incrementer")
-
-#    RE(both_peaks())

@@ -21,17 +21,17 @@ muR = EpicsMotor(MOTOR_PV_MUR, name='muR')
 
 
 class Tardis(E6C):
-    h = Cpt(PseudoSingle, '')
-    k = Cpt(PseudoSingle, '')
-    l = Cpt(PseudoSingle, '')
+    h = Component(PseudoSingle, '')
+    k = Component(PseudoSingle, '')
+    l = Component(PseudoSingle, '')
 
-    mu    = Cpt(EpicsMotor, MOTOR_PV_MU)
-    omega = Cpt(NullMotor)
-    #omega = Cpt(EpicsSignal,'prj:m4.RBV')
-    chi =   Cpt(NullMotor)
-    phi =   Cpt(NullMotor)
-    gamma = Cpt(EpicsMotor, MOTOR_PV_GAMMA)
-    delta = Cpt(EpicsMotor, MOTOR_PV_DELTA)
+    mu    = Component(EpicsMotor, MOTOR_PV_MU)
+    omega = Component(NullMotor)
+    #omega = Component(EpicsSignal,'prj:m4.RBV')
+    chi =   Component(NullMotor)
+    phi =   Component(NullMotor)
+    gamma = Component(EpicsMotor, MOTOR_PV_GAMMA)
+    delta = Component(EpicsMotor, MOTOR_PV_DELTA)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -95,8 +95,8 @@ def demo_tardis():
     for jupyter notebooks with tardis in the E6C geometry.
     """
 
-    BlueskyMagics.positioners += list(fourc.real_positioners)
-    BlueskyMagics.positioners += list(fourc.pseudo_positioners)
+    append_wa_motor_list(*tardis.real_positioners)
+    append_wa_motor_list(*tardis.pseudo_positioners)
 
     # add a sample to the calculation engine (lengths are 
     # in angstroms, angles are in degrees)::
