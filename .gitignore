@@ -11,3 +11,9 @@ history
 *.pyo
 *~
 mViewer.log
+mViewer.log
+
+# eclipse IDE
+.project
+.pydevproject
+.settings
