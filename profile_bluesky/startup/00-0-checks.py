@@ -32,3 +32,7 @@ if cur_version < req_version:
    msg = "Need at least BlueSky version >= {}, you have {}"
    msg = msg.format(req_version, bluesky.__version__)
    raise ValueError(msg)
+print("BlueSky version:", bluesky.__version__)
+
+import ophyd
+print("Ophyd version:", ophyd.__version__)
