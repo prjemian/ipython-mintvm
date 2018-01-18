@@ -10,8 +10,7 @@ from ophyd import PVPositioner, PVPositionerPC, SoftPositioner
 from ophyd import AreaDetector, PcoDetectorCam
 from ophyd import SingleTrigger, ImagePlugin, HDF5Plugin
 from ophyd.areadetector.filestore_mixins import FileStoreHDF5IterativeWrite
-from APS_BlueSky_tools.devices import userCalcsDevice
-# from APS_BlueSky_tools.synApps_ophyd import *
+from APS_BlueSky_tools.devices import *
 
 
 class MotorDialValuesDevice(Device):
