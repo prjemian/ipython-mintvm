@@ -4,7 +4,7 @@ This is the IPython startup directory
 via the exec_lines or exec_files configurables whenever you load this profile.
 
 Files will be run in lexicographical order, so you can control the execution order of files
-with a prefix, e.g.::
+with a prefix, e.g.:
 
     00-first.py
     50-middle.py
