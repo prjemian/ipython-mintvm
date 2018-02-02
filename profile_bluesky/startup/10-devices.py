@@ -13,20 +13,6 @@ from ophyd.areadetector.filestore_mixins import FileStoreHDF5IterativeWrite
 from APS_BlueSky_tools.devices import *
 
 
-# TODO: import from APS_BlueSky_tools.devices
-class EpicsMotorWithDial(EpicsMotor):
-    """
-    add motor record's dial coordinates to EpicsMotor
-    
-    USAGE::
-    
-        m1 = EpicsMotorWithDial('xxx:m1', name='m1')
-    
-    """
-    dial = Component(EpicsSignal, ".DRBV", write_pv=".DVAL")
-    raw = Component(EpicsSignal, ".RRBV", write_pv=".RVAL")
-
-
 # TODO: fix upstream!!
 class NullMotor(SoftPositioner):
     @property
