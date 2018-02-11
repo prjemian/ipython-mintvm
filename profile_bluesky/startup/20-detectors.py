@@ -6,6 +6,7 @@ from APS_BlueSky_tools.examples import SynPseudoVoigt
 
 noisy = EpicsSignalRO('prj:userCalc1', name='noisy')
 scaler = EpicsScaler('prj:scaler1', name='scaler')
+#sc2 = ScalerCH('prj:scaler1', name='sc2')
 
 
 spvoigt = SynPseudoVoigt(

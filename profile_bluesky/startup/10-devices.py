@@ -5,6 +5,7 @@ print(__file__)
 import time
 from ophyd import Component, Device, DeviceStatus
 from ophyd import EpicsMotor, EpicsScaler
+from ophyd.scaler import ScalerCH
 from ophyd import EpicsSignal, EpicsSignalRO, EpicsSignalWithRBV
 from ophyd import PVPositioner, PVPositionerPC, SoftPositioner
 from ophyd import AreaDetector, PcoDetectorCam
