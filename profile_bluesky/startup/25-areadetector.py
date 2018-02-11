@@ -68,3 +68,70 @@ def ad_continuous_setup(det, acq_time=0.1, acq_period=0.005):
     det.cam.acquire_time.put(acq_time)
     det.cam.acquire_period.put(acq_period)
     det.cam.image_mode.put("Continuous")
+
+
+def setup_det_trigger(motor, det, motion_calc, trigger_calc, increment=2.5):
+    """
+    Prepare to trigger simulated area detector when motor is moved.
+    Trigger only in positive direction.
+    motion_calc.B is increment of motor motion that triggers an image frame.
+    """
+    motion_calc.reset()
+    motion_calc.desc.put("motion increment")
+    motion_calc.channels.A.input_pv.put(motor.user_readback.pvname)
+    motion_calc.channels.B.value.put(increment)
+    motion_calc.calc.put("floor(A/B)")
+    motion_calc.oopt.put("Every Time")
+    motion_calc.scan.put("I/O Intr")
+
+    trigger_calc.reset()
+    trigger_calc.desc.put("detector trigger")
+    trigger_calc.channels.A.input_pv.put(trigger_calc.channels.B.value.pvname)
+    trigger_calc.channels.B.input_pv.put(motion_calc.val.pvname)
+    trigger_calc.channels.C.input_pv.put(motor.direction_of_travel.pvname)
+    trigger_calc.calc.put("C&&(A!=B)")
+    trigger_calc.oopt.put("Transition To Non-zero")
+    trigger_calc.outn.put(det.cam.prefix + "Acquire")
+    trigger_calc.scan.put("I/O Intr")
+    
+    det.cam.image_mode.put("Single")
+    det.hdf1.enable.put("Disable")
+    """
+    typical acquisition sequence:
+    
+        det_pre_acquire(det)
+        det.cam.acquire.put()       # as many frames as needed
+        det_post_acquire(det)
+    """
+
+
+def det_pre_acquire(det, max_frames=10000):
+    # enable the HDF5 plugin
+    det.hdf1.enable.put("Enable")
+    
+    # prepare to capture a stream of image frames in one array
+    det.hdf1.file_write_mode.put("Capture")
+    
+    # collect as many as this number
+    det.hdf1.num_capture.put(max_frames)
+    
+    # start to capture the stream
+    det.hdf1.capture.put("Capture")
+
+
+def det_post_acquire(det):
+    # stream is now fully captured
+    det.hdf1.capture.put("Done")
+    
+    # write the HDF5 file
+    det.hdf1.write_file.put(1)
+    
+    # reset the HDF5 plugin to some default settings
+    det.hdf1.file_write_mode.put("Single")
+    det.hdf1.num_capture.put(1)
+    det.hdf1.enable.put("Disable")
+
+
+setup_det_trigger(m3, simdet, calcs.calc3, calcs.calc4)
+
+# TODO: set up a flyer to move the motor, acquire images, and finish up
