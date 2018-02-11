@@ -72,7 +72,6 @@ class SpinFlyer(object):
         
         def action():
             """the real action of ``set()`` is here"""
-            # print("action(): " + value)
             if str(value).lower() == "taxi":
                 self.taxi()
             elif str(value).lower() == "fly":
@@ -81,19 +80,15 @@ class SpinFlyer(object):
                 det_post_acquire(self.detector)
             elif str(value).lower() == "return":
                 self.motor.move(self.pos_premove)
-            # print("action() done")
 
         def run_and_wait():
             """handle the ``action()`` in a thread"""
-            # print("run_and_wait() started")
             self.busy.put(True)
             action()
             self.busy.put(False)
             status._finished(success=True)
-            # print("run_and_wait() done")
         
         threading.Thread(target=run_and_wait, daemon=True).start()
-        # print("set() after thread")
         return status
 
     def kickoff(self):
