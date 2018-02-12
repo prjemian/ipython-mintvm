@@ -7,13 +7,41 @@ Demo of Flyer to simulate MONA tomo fly scan
 """
 
 
+import asyncio
+from collections import deque, OrderedDict
+
+
 class BusyRecord(Device):
     state = Component(EpicsSignal, "")
     output_link = Component(EpicsSignal, ".OUT")
     forward_link = Component(EpicsSignal, ".FLNK")
     
 
-mybusy = BusyRecord("prj:mybusy", name="mybusy")
+def det_pre_acquire(det, max_frames=10000):
+    # enable the HDF5 plugin
+    det.hdf1.enable.put("Enable")
+    
+    # prepare to capture a stream of image frames in one array
+    det.hdf1.file_write_mode.put("Capture")
+    
+    # collect as many as this number
+    det.hdf1.num_capture.put(max_frames)
+    
+    # start to capture the stream
+    det.hdf1.capture.put("Capture")
+
+
+def det_post_acquire(det):
+    # stream is now fully captured
+    det.hdf1.capture.put("Done")
+    
+    # write the HDF5 file
+    det.hdf1.write_file.put(1)
+    
+    # reset the HDF5 plugin to some default settings
+    det.hdf1.file_write_mode.put("Single")
+    det.hdf1.num_capture.put(1)
+    det.hdf1.enable.put("Disable")
 
 
 class SpinFlyer(object):
@@ -39,8 +67,7 @@ class SpinFlyer(object):
     name = "spin_flyer"
     parent = None
     
-    def __init__(self, motor, detector, busy, pre_start=-0.5, pos_start=-20, pos_finish=20, increment=2.5):
-        self.status = None
+    def __init__(self, motor, detector, busy, pre_start=-0.5, pos_start=-20, pos_finish=20, loop=None):
         self.motor = motor
         self.detector = detector
         self.busy = busy
@@ -48,7 +75,12 @@ class SpinFlyer(object):
         self.pos_premove = motor.position
         self.pos_start = pos_start
         self.pos_finish = pos_finish
-        self.increment = increment
+        
+        self.poll_delay_s = 0.05
+
+        self._completion_status = None
+        self._data = deque()
+        self.loop = loop or asyncio.get_event_loop()
     
     def taxi(self):
         # pre_start position is far enough before pos_start to ramp up to speed
@@ -95,14 +127,63 @@ class SpinFlyer(object):
         """
         Start a flyer
         """
-        self.status = DeviceStatus(device=self)
-        return self.status
+        if self._completion_status is not None:
+            raise RuntimeError("Already kicked off.")
+        self._data = deque()
+
+        self._future = self.loop.run_in_executor(None, self._spin)
+        st = DeviceStatus(device=self)
+        self._completion_status = st
+        # self._future.add_done_callback(self._spin_done_callback())
+        self._future.add_done_callback(lambda x: st._finished())
+        return st
+
+    def _spin(self):
+        """
+        spin flyer, called from kickoff() in asyncio thread
+        """
+        self.pos_premove = self.motor.position
+        self.taxi()
+
+        det_pre_acquire(self.detector)
+        self.fly()
+        det_post_acquire(self.detector)
+
+        while self.detector.hdf1.write_file.value:
+            time.sleep(0.01)    # wait for file to be written
+
+        key = self.detector.hdf1.full_file_name.name
+        full_file_name = self.detector.hdf1.full_file_name.value
+        det_time_stamp = self.detector.hdf1.time_stamp.value
+        event = OrderedDict()
+        event["time"] = time.time()
+        event["seq_num"] = 1
+        event["data"] = {key: full_file_name}
+        event["timestamps"] = {key: det_time_stamp}
+        print("event: {}".format(event))
+        self._data.append(event)
+        # print("# data: {}".format(len(self._data)))
+
+        self.motor.move(self.pos_premove)
+        self._completion_status._finished(success=True)
+
+    def _spin_done_callback(self):
+        """
+        called when _spin() is done
+        """
+        if self._completion_status is None:
+            raise RuntimeError("Not kicked off.")
+        
+        # print("_spin_done_callback()")
 
     def describe_collect(self):
         """
         Provide schema & meta-data from ``collect()``
         """
-        return {'stream_name': {}}
+        dd = dict()
+        dd.update(self.detector.hdf1.full_file_name.describe())
+        return {'stream_name': dd}
+        # return OrderedDict()
 
     def read_configuration(self):
         """
@@ -112,62 +193,57 @@ class SpinFlyer(object):
     def describe_configuration(self):
         """
         """
+        dd = dict()
+        for obj in (self.motor, self.detector, self.busy): 
+            dd.update(obj.describe_configuration())
+        key = 'stream_name'         # FIXME: correct?
+        # return {key: dd}
         return OrderedDict()
 
     def complete(self):
         """
         Wait for flying to be complete
         """
-        return self.status
+        if self._completion_status is None:
+            raise RuntimeError("No collection in progress")
+        
+        while self.motor.moving:
+            time.sleep(self.poll_delay_s)
+        
+        return self._completion_status
     
     def collect(self):
         """
         Retrieve data from the flyer as *proto-events*
         """
-        # TODO: refactor
-        for i in range(100):
-            yield {'data': {}, 'timestamps': {}, 'time': i, 'seq_num': i}
+        if self._completion_status is None or not self._completion_status.done:
+            raise RuntimeError("No reading until done!")
+        self._completion_status = None
+
+        yield from self._data
     
-    def stop(self, *, success=False):
-        """
-        """
-        pass
+    #def stop(self, *, success=False):
+    #    """
+    #    """
+    #    pass
 
 
-spin_flyer = SpinFlyer(m3, simdet, mybusy.state)
+"""
+USAGE:
+
+    spin_flyer = SpinFlyer(m3, simdet, mybusy.state)
+    RE(bp.fly([spin_flyer]))
+"""
+mybusy = BusyRecord("prj:mybusy", name="mybusy")
+spin_flyer = SpinFlyer(
+    m3, simdet, mybusy.state,
+    pre_start=-0.2, pos_start=-2.0, pos_finish=2.0)
+setup_det_trigger(m3, simdet, calcs.calc3, calcs.calc4)
+calcs.calc3.channels.B.value.put(0.25)
+
 
 def example_planB():
     spin_flyer.pos_premove = spin_flyer.motor.position
     yield from mv(spin_flyer, "Taxi")
     yield from mv(spin_flyer, "Fly")
     yield from mv(spin_flyer, "Return")
-
-
-def det_pre_acquire(det, max_frames=10000):
-    # enable the HDF5 plugin
-    det.hdf1.enable.put("Enable")
-    
-    # prepare to capture a stream of image frames in one array
-    det.hdf1.file_write_mode.put("Capture")
-    
-    # collect as many as this number
-    det.hdf1.num_capture.put(max_frames)
-    
-    # start to capture the stream
-    det.hdf1.capture.put("Capture")
-
-
-def det_post_acquire(det):
-    # stream is now fully captured
-    det.hdf1.capture.put("Done")
-    
-    # write the HDF5 file
-    det.hdf1.write_file.put(1)
-    
-    # reset the HDF5 plugin to some default settings
-    det.hdf1.file_write_mode.put("Single")
-    det.hdf1.num_capture.put(1)
-    det.hdf1.enable.put("Disable")
-
-
-setup_det_trigger(m3, simdet, calcs.calc3, calcs.calc4)
