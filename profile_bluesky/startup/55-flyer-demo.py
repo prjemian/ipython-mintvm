@@ -154,7 +154,7 @@ class SpinFlyer(object):
 
         event = OrderedDict()
         event["time"] = time.time()
-        # event["seq_num"] = 1
+        event["seq_num"] = 1
         event["data"] = {}
         event["timestamps"] = {}
         for d_item in (self.detector.hdf1.full_file_name):
