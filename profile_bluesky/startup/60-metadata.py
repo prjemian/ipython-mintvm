@@ -1,6 +1,7 @@
 print(__file__)
 
 from datetime import datetime
+import APS_BlueSky_tools
 
 
 def print_scan_ids(name, start_doc):

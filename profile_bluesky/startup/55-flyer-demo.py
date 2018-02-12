@@ -182,7 +182,8 @@ class SpinFlyer(object):
         """
         dd = dict()
         dd.update(self.detector.hdf1.full_file_name.describe())
-        return {'stream_name': dd}
+        stream_name = self.name
+        return {stream_name: dd}
         # return OrderedDict()
 
     def read_configuration(self):
@@ -228,11 +229,26 @@ class SpinFlyer(object):
     #    pass
 
 
+def myfly(flyers, *, md=None):
+    """
+    variant of bp.plans.fly() with stream-True on collect()
+    """
+    yield from bps.open_run(md)
+    for flyer in flyers:
+        yield from bps.kickoff(flyer, wait=True)
+    for flyer in flyers:
+        yield from bps.complete(flyer, wait=True)
+    for flyer in flyers:
+        yield from bps.collect(flyer, stream=True)
+    yield from bps.close_run()
+
+
 """
 USAGE:
 
     spin_flyer = SpinFlyer(m3, simdet, mybusy.state)
     RE(bp.fly([spin_flyer]))
+    RE(myfly([spin_flyer]))
 """
 mybusy = BusyRecord("prj:mybusy", name="mybusy")
 spin_flyer = SpinFlyer(
