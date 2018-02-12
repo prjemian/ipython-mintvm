@@ -44,7 +44,7 @@ def det_post_acquire(det):
     det.hdf1.enable.put("Disable")
 
 
-class SpinFlyer(object):
+class SpinFlyer(Device):
     """
     one spin of the tomo stage, run as ophyd Flyer object
     
@@ -64,10 +64,17 @@ class SpinFlyer(object):
     * success = motor has reached end position
     * detector data saved
     """
-    name = "spin_flyer"
-    parent = None
     
-    def __init__(self, motor, detector, busy, pre_start=-0.5, pos_start=-20, pos_finish=20, loop=None):
+    def __init__(self, 
+                 motor, 
+                 detector, 
+                 busy, 
+                 pre_start=-0.5, 
+                 pos_start=-20, 
+                 pos_finish=20, 
+                 loop=None, 
+                 **kwargs):
+        super().__init__('', parent=None, **kwargs)
         self.motor = motor
         self.detector = detector
         self.busy = busy
@@ -185,7 +192,8 @@ class SpinFlyer(object):
         """
         dd = dict()
         dd.update(self.detector.hdf1.full_file_name.describe())
-        stream_name = self.name
+        # stream_name = self.name
+        stream_name = "spin_flyer_stream"
         return {stream_name: dd}
         # return OrderedDict()
 
@@ -249,7 +257,7 @@ def myfly(flyers, *, md=None):
 """
 USAGE:
 
-    spin_flyer = SpinFlyer(m3, simdet, mybusy.state)
+    spin_flyer = SpinFlyer(m3, simdet, mybusy.state, name="spin_flyer")
     RE(bp.fly([spin_flyer]))
     RE(myfly([spin_flyer]))
 """
@@ -257,7 +265,8 @@ try:
     mybusy = BusyRecord("prj:mybusy", name="mybusy")
     spin_flyer = SpinFlyer(
         m3, simdet, mybusy.state,
-        pre_start=-0.2, pos_start=-2.0, pos_finish=2.0)
+        pre_start=-0.2, pos_start=-2.0, pos_finish=2.0,
+        name="spin_flyer")
     setup_det_trigger(m3, simdet, calcs.calc3, calcs.calc4)
     calcs.calc3.channels.B.value.put(0.25)
 except Exception as _exc:
