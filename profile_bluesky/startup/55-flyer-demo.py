@@ -250,12 +250,15 @@ USAGE:
     RE(bp.fly([spin_flyer]))
     RE(myfly([spin_flyer]))
 """
-mybusy = BusyRecord("prj:mybusy", name="mybusy")
-spin_flyer = SpinFlyer(
-    m3, simdet, mybusy.state,
-    pre_start=-0.2, pos_start=-2.0, pos_finish=2.0)
-setup_det_trigger(m3, simdet, calcs.calc3, calcs.calc4)
-calcs.calc3.channels.B.value.put(0.25)
+try:
+    mybusy = BusyRecord("prj:mybusy", name="mybusy")
+    spin_flyer = SpinFlyer(
+        m3, simdet, mybusy.state,
+        pre_start=-0.2, pos_start=-2.0, pos_finish=2.0)
+    setup_det_trigger(m3, simdet, calcs.calc3, calcs.calc4)
+    calcs.calc3.channels.B.value.put(0.25)
+except Exception as _exc:
+    print("problems setting up demo spin_flyer\n", _exc)
 
 
 def example_planB():
