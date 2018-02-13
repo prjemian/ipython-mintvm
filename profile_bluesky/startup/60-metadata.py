@@ -22,6 +22,7 @@ def print_scan_ids(name, start_doc):
 RE.md['beamline_id'] = 'developer'  # TODO: !!!YOUR BEAMLINE HERE!!!
 RE.md['proposal_id'] = None
 RE.md['pid'] = os.getpid()
+RE.md['ipython_session_start'] = datetime.isoformat(datetime.now(), " ")
 
 
 import socket 
