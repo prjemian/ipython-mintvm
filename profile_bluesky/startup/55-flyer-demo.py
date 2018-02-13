@@ -253,8 +253,10 @@ try:
         pre_start=-0.2, pos_start=-2.0, pos_finish=2.0,
         name="spin_flyer")
     setup_det_trigger(m3, simdet, calcs.calc3, calcs.calc4)
+    # trigger image every motion modulo 0.25
     calcs.calc3.channels.B.value.put(0.25)
-    #spin_flyer.stream_name = "primary"
+    # only enable detector triggers when HDF5 plugin is enabled
+    calcs.calc4.channels.C.input_pv.put(simdet.hdf1.enable.pvname)
 except Exception as _exc:
     print("problems setting up demo spin_flyer\n", _exc)
 
