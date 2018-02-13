@@ -164,7 +164,7 @@ class SpinFlyer(Device):
         event["seq_num"] = 1
         event["data"] = {}
         event["timestamps"] = {}
-        for d_item in (self.detector.hdf1.full_file_name):
+        for d_item in (self.detector.hdf1.full_file_name,):
             d = d_item.read()
             for k, v in d.items():
                 event['data'][k] = v['value']
