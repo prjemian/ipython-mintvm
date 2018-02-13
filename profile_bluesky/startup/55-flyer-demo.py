@@ -18,6 +18,9 @@ class BusyRecord(Device):
     
 
 def det_pre_acquire(det, max_frames=10000):
+    # reset the array counter
+    det.cam.array_counter.put(0)
+
     # enable the HDF5 plugin
     det.hdf1.enable.put("Enable")
     
@@ -82,6 +85,7 @@ class SpinFlyer(Device):
         self.pos_premove = motor.position
         self.pos_start = pos_start
         self.pos_finish = pos_finish
+        self.stream_name = "spin_flyer_stream"
         
         self.poll_delay_s = 0.05
 
@@ -139,11 +143,8 @@ class SpinFlyer(Device):
         self._data = deque()
 
         self._future = self.loop.run_in_executor(None, self._spin)
-        st = DeviceStatus(device=self)
-        self._completion_status = st
-        # self._future.add_done_callback(self._spin_done_callback())
-        self._future.add_done_callback(lambda x: st._finished())
-        return st
+        self._completion_status = DeviceStatus(device=self)
+        return self._completion_status
 
     def _spin(self):
         """
@@ -170,21 +171,10 @@ class SpinFlyer(Device):
                 event['data'][k] = v['value']
                 event['timestamps'][k] = v['timestamp']
 
-        print("event: {}".format(event))
         self._data.append(event)
-        # print("# data: {}".format(len(self._data)))
 
         self.motor.move(self.pos_premove)
         self._completion_status._finished(success=True)
-
-    def _spin_done_callback(self):
-        """
-        called when _spin() is done
-        """
-        if self._completion_status is None:
-            raise RuntimeError("Not kicked off.")
-        
-        # print("_spin_done_callback()")
 
     def describe_collect(self):
         """
@@ -192,10 +182,7 @@ class SpinFlyer(Device):
         """
         dd = dict()
         dd.update(self.detector.hdf1.full_file_name.describe())
-        # stream_name = self.name
-        stream_name = "spin_flyer_stream"
-        return {stream_name: dd}
-        # return OrderedDict()
+        return {self.stream_name: dd}
 
     def read_configuration(self):
         """
@@ -208,8 +195,6 @@ class SpinFlyer(Device):
         dd = dict()
         for obj in (self.motor, self.detector, self.busy): 
             dd.update(obj.describe_configuration())
-        key = 'stream_name'         # FIXME: correct?
-        # return {key: dd}
         return OrderedDict()
 
     def complete(self):
@@ -269,6 +254,7 @@ try:
         name="spin_flyer")
     setup_det_trigger(m3, simdet, calcs.calc3, calcs.calc4)
     calcs.calc3.channels.B.value.put(0.25)
+    #spin_flyer.stream_name = "primary"
 except Exception as _exc:
     print("problems setting up demo spin_flyer\n", _exc)
 
