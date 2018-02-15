@@ -22,7 +22,6 @@ def print_scan_ids(name, start_doc):
 RE.md['beamline_id'] = 'developer'  # TODO: !!!YOUR BEAMLINE HERE!!!
 RE.md['proposal_id'] = None
 RE.md['pid'] = os.getpid()
-RE.md['ipython_session_start'] = datetime.isoformat(datetime.now(), " ")
 
 
 import socket 
@@ -33,6 +32,8 @@ RE.md['login_id'] = USERNAME + '@' + HOSTNAME
 RE.md['BLUESKY_VERSION'] = bluesky.__version__
 RE.md['OPHYD_VERSION'] = ophyd.__version__
 RE.md['APS_BlueSky_tools_VERSION'] = APS_BlueSky_tools.__version__
+RE.md['SESSION_START'] = datetime.isoformat(datetime.now(), " ")
+
 
 #import os
 #for key, value in os.environ.items():
