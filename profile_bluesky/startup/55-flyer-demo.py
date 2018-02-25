@@ -17,36 +17,6 @@ class BusyRecord(Device):
     forward_link = Component(EpicsSignal, ".FLNK")
     
 
-def det_pre_acquire(det, max_frames=10000):
-    # reset the array counter
-    det.cam.array_counter.put(0)
-
-    # enable the HDF5 plugin
-    det.hdf1.enable.put("Enable")
-    
-    # prepare to capture a stream of image frames in one array
-    det.hdf1.file_write_mode.put("Capture")
-    
-    # collect as many as this number
-    det.hdf1.num_capture.put(max_frames)
-    
-    # start to capture the stream
-    det.hdf1.capture.put("Capture")
-
-
-def det_post_acquire(det):
-    # stream is now fully captured
-    det.hdf1.capture.put("Done")
-    
-    # write the HDF5 file
-    det.hdf1.write_file.put(1)
-    
-    # reset the HDF5 plugin to some default settings
-    det.hdf1.file_write_mode.put("Single")
-    det.hdf1.num_capture.put(1)
-    det.hdf1.enable.put("Disable")
-
-
 class SpinFlyer(Device):
     """
     one spin of the tomo stage, run as ophyd Flyer object
@@ -82,12 +52,13 @@ class SpinFlyer(Device):
         self.detector = detector
         self.busy = busy
         self.pre_start = pre_start
-        self.pos_premove = motor.position
+        self.return_position = motor.position
         self.pos_start = pos_start
         self.pos_finish = pos_finish
         self.stream_name = "spin_flyer_stream"
         
         self.poll_delay_s = 0.05
+        self.num_spins = 1
 
         self._completion_status = None
         self._data = deque()
@@ -118,11 +89,11 @@ class SpinFlyer(Device):
             if str(value).lower() == "taxi":
                 self.taxi()
             elif str(value).lower() == "fly":
-                det_pre_acquire(self.detector)
+                self.pre_fly()
                 self.fly()
-                det_post_acquire(self.detector)
+                self.post_fly()
             elif str(value).lower() == "return":
-                self.motor.move(self.pos_premove)
+                self.motor.move(self.return_position)
 
         def run_and_wait():
             """handle the ``action()`` in a thread"""
@@ -133,6 +104,36 @@ class SpinFlyer(Device):
         
         threading.Thread(target=run_and_wait, daemon=True).start()
         return status
+    
+    def pre_fly(self, max_frames=10000):
+        """ """
+        # reset the array counter
+        self.detector.cam.array_counter.put(0)
+
+        # enable the HDF5 plugin
+        self.detector.hdf1.enable.put("Enable")
+        
+        # prepare to capture a stream of image frames in one array
+        self.detector.hdf1.file_write_mode.put("Capture")
+        
+        # collect as many as this number
+        self.detector.hdf1.num_capture.put(max_frames)
+        
+        # start to capture the stream
+        self.detector.hdf1.capture.put("Capture")
+    
+    def post_fly(self):
+        """ """
+        # stream is now fully captured
+        self.detector.hdf1.capture.put("Done")
+        
+        # write the HDF5 file
+        self.detector.hdf1.write_file.put(1)
+        
+        # reset the HDF5 plugin to some default settings
+        self.detector.hdf1.file_write_mode.put("Single")
+        self.detector.hdf1.num_capture.put(1)
+        self.detector.hdf1.enable.put("Disable")
 
     def kickoff(self):
         """
@@ -142,38 +143,40 @@ class SpinFlyer(Device):
             raise RuntimeError("Already kicked off.")
         self._data = deque()
 
-        self._future = self.loop.run_in_executor(None, self._spin)
+        self._future = self.loop.run_in_executor(None, self._spin_sequence)
         self._completion_status = DeviceStatus(device=self)
         return self._completion_status
 
-    def _spin(self):
+    def _spin_sequence(self):
         """
         spin flyer, called from kickoff() in asyncio thread
         """
-        self.pos_premove = self.motor.position
-        self.taxi()
+        self.return_position = self.motor.position
+        
+        for spin_num in range(self.num_spins):
+            self.taxi()
 
-        det_pre_acquire(self.detector)
-        self.fly()
-        det_post_acquire(self.detector)
+            det_pre_acquire(self.detector)
+            self.fly()
+            det_post_acquire(self.detector)
 
-        while self.detector.hdf1.write_file.value:
-            time.sleep(0.01)    # wait for file to be written
+            while self.detector.hdf1.write_file.value:
+                time.sleep(0.01)    # wait for file to be written
 
-        event = OrderedDict()
-        event["time"] = time.time()
-        event["seq_num"] = 1
-        event["data"] = {}
-        event["timestamps"] = {}
-        for d_item in (self.detector.hdf1.full_file_name,):
-            d = d_item.read()
-            for k, v in d.items():
-                event['data'][k] = v['value']
-                event['timestamps'][k] = v['timestamp']
+            event = OrderedDict()
+            event["time"] = time.time()
+            event["seq_num"] = spin_num + 1
+            event["data"] = {}
+            event["timestamps"] = {}
+            for d_item in (self.detector.hdf1.full_file_name,):
+                d = d_item.read()
+                for k, v in d.items():
+                    event['data'][k] = v['value']
+                    event['timestamps'][k] = v['timestamp']
 
-        self._data.append(event)
+            self._data.append(event)
 
-        self.motor.move(self.pos_premove)
+        self.set("Return")
         self._completion_status._finished(success=True)
 
     def describe_collect(self):
