@@ -131,7 +131,9 @@ def det_post_acquire(det):
     det.hdf1.num_capture.put(1)
     det.hdf1.enable.put("Disable")
 
-
-setup_det_trigger(m3, simdet, calcs.calc3, calcs.calc4)
+try:
+    setup_det_trigger(m3, simdet, calcs.calc3, calcs.calc4)
+except NameError:
+    pass
 
 # TODO: set up a flyer to move the motor, acquire images, and finish up
