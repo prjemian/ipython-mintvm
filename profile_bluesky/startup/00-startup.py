@@ -41,3 +41,9 @@ def append_wa_motor_list(*motorlist):
 
 # needed for the EPICS areaDetector SimDetector (12M + 100)
 os.environ["EPICS_CA_MAX_ARRAY_BYTES"] = "12000100"
+
+
+# diagnostics
+from bluesky.utils import ts_msg_hook
+#RE.msg_hook = ts_msg_hook
+from bluesky.simulators import summarize_plan
