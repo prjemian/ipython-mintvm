@@ -130,12 +130,15 @@ class PeakAxisTuner(AxisTunerBase):
         # additional metadata
         if md is None:
             md = OrderedDict()
-        md["tune_name"] = "PeakAxisTuner.tune"
-        md["tune_det"] = self.det.name
-        md["tune_axis"] = self.axis.name
+        
+        sub_md = OrderedDict()
+        sub_md["name"] = "PeakAxisTuner.tune"
+        sub_md["det"] = self.det.name
+        sub_md["axis"] = self.axis.name
         for k, v in self.params.items():
-            md["tune_"+k] = v
-        md["pretune_position"] = self.pretune_position
+            sub_md[k] = v
+        sub_md["pretune_position"] = self.pretune_position
+        md["tuner"] = sub_md
 
         # additional staging for tuning
         # use a class attribute as fallback in case restore is missed
@@ -295,9 +298,9 @@ class AxisTunerMixin(object):
 
 
 def my_pre_tune_hook(axis):
-    print("my_pre_tune_hook")
+    print("#"*40 + " my_pre_tune_hook")
 def my_post_tune_hook(axis):
-    print("my_post_tune_hook")
+    print("#"*40 + " my_post_tune_hook")
 
 class myAxis(SynAxis, AxisTunerMixin):
     pass
@@ -308,4 +311,4 @@ mydet = SynGauss('mydet', myaxis, 'myaxis', center=0.21, Imax=0.98e5, sigma=0.12
 
 myaxis.pre_tune_function = my_pre_tune_hook
 myaxis.post_tune_function = my_post_tune_hook
-myaxis.tuner.set_params(axis=myaxis, det=mydet)
+myaxis.tuner.set_params(axis=myaxis, det=mydet, num=71)
