@@ -9,12 +9,15 @@ from ophyd.sim import det1, det2
 from bluesky.callbacks.fitting import PeakStats
 from ophyd.sim import SynGauss
 from ophyd.sim import SynAxis
+from ophyd.sim import SynSignal
+from ophyd import areadetector
 
 append_wa_motor_list(motor1, motor2, motor3)
 
 
 # this code will go into APS_BlueSky_tools.devices
 #------------------------------------------------------
+
 
 class AxisTunerException(ValueError): 
     """Exception during execution of `AxisTunerBase` subclass"""
@@ -113,6 +116,18 @@ class PeakAxisTuner(AxisTunerBase):
             `AxisTunerException` if cannot tune
 
         """
+        def set_detector_count_time(det_list, time_s):
+            """set detector counting time (s)"""
+            for det in det_list:
+                if isinstance(det, SynSignal):
+                    det.exposure_time = time_s
+         
+                elif isinstance(det, (EpicsScaler, ScalerCH)):
+                    det.stage_sigs["preset_time"] = time_s
+         
+                elif isinstance(det, areadetector.DetectorBase):
+                    det.cam.stage_sigs["acquire_time"] = time_s
+
         if self.axis is None:
             msg = "Must define an axis, none specified."
             raise AxisTunerException(msg)
@@ -145,12 +160,8 @@ class PeakAxisTuner(AxisTunerBase):
         self.std_stage_sigs = self.axis.stage_sigs
         self.axis.stage_sigs.update(self.tune_stage_sigs)
 
-        # stage the counting time
-        det_time = self.params["time_s"]    # RHS should be current detector counting time
-        if False:
-            # TODO: stage or set?
-            yield from bps.mv(self.det.exposure_time, self.params["time_s"])  # FIXME: fails
-        
+        set_detector_count_time([self.det], self.params["time_s"])
+
         # prepare to get pl_MAX, pl_MIN, and PL_COM
         self.peak_stats = PeakStats(x=self.axis.name, y=self.det.name)
         
@@ -167,7 +178,7 @@ class PeakAxisTuner(AxisTunerBase):
 
         # restore standard staging
         self.axis.stage_sigs = self.std_stage_sigs
-        self.params["time_s"] = det_time
+        # self.params["time_s"] = det_time
         
         if self.peak_detected(peak_stats=self.peak_stats):
             self.ok = True
@@ -285,10 +296,8 @@ class AxisTunerMixin(object):
         if self.pre_tune_function is not None:
             self.pre_tune_function(self)
 
-        # TODO: prep
         if self.tuner is not None:
             yield from self.tuner.tune(md=md, **kwargs)
-        # TODO: restore
 
         if self.post_tune_function is not None:
             self.post_tune_function(self)
@@ -312,3 +321,16 @@ mydet = SynGauss('mydet', myaxis, 'myaxis', center=0.21, Imax=0.98e5, sigma=0.12
 myaxis.pre_tune_function = my_pre_tune_hook
 myaxis.post_tune_function = my_post_tune_hook
 myaxis.tuner.set_params(axis=myaxis, det=mydet, num=71)
+
+class TunableEpicsMotor(EpicsMotor, AxisTunerMixin):
+    pass
+
+m1 = TunableEpicsMotor('prj:m1', name='m1')
+spvoigt = SynPseudoVoigt(
+    'spvoigt', m1, 'm1', 
+    center=-1.5 + 0.5*np.random.uniform(), 
+    eta=0.2 + 0.5*np.random.uniform(), 
+    sigma=0.001 + 0.05*np.random.uniform(), 
+    scale=0.95e5,
+    bkg=0.01*np.random.uniform())
+m1.tuner.set_params(axis=m1, det=spvoigt, num=71)
