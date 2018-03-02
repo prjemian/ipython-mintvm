@@ -129,7 +129,7 @@ class PeakAxisTuner(AxisTunerBase):
             """set detector counting time (s)"""
             for det in det_list:
                 if isinstance(det, SynSignal):
-                    det.exposure_time = time_s
+                    det.exposure_time = time_s  # no stage_sigs here
          
                 elif isinstance(det, (EpicsScaler, ScalerCH)):
                     det.stage_sigs["preset_time"] = time_s
