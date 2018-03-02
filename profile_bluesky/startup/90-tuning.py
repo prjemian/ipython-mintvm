@@ -11,6 +11,8 @@ from ophyd.sim import SynGauss
 from ophyd.sim import SynAxis
 from ophyd.sim import SynSignal
 from ophyd import areadetector
+from ophyd.device import BlueskyInterface
+
 
 append_wa_motor_list(motor1, motor2, motor3)
 
@@ -24,7 +26,7 @@ class AxisTunerException(ValueError):
     pass
 
 
-class AxisTunerBase(object):
+class AxisTunerBase(BlueskyInterface):
     """
     base class for AxisTuner implementations
 
@@ -36,12 +38,14 @@ class AxisTunerBase(object):
         ~set_params
 
     """
-    axis = None
-    det = None
-    params = dict()         # terms needed by the `tune()` method
-    pretune_position = None # position before `tune()` is called
-    ok = False              # was `tune()` successful? 
-    tune_position = None    # position to use if self.ok
+    
+    def __init__(self):
+        self.axis = None
+        self.det = None
+        self.params = dict()         # terms needed by the `tune()` method
+        self.pretune_position = None # position before `tune()` is called
+        self.ok = False              # was `tune()` successful? 
+        self.tune_position = None    # position to use if self.ok
 
     def tune(self, md={}, **kwargs):
         raise NotImplementedError("must define in subclass")
@@ -79,17 +83,22 @@ class PeakAxisTuner(AxisTunerBase):
     """
     scan y v. x, then set x = x@max(y), iff max(y) >= 4*min(y), raise `AxisTunerException` as needed
     """
-    # implement algorithm from SPEC here (tune to signal peak)
-    # see example: https://github.com/prjemian/ipython_ookhd/blob/master/profile_bluesky/startup/11-bs_sim_motors.py#L29
-    params = dict(
-        start = -1,
-        finish = 1,
-        num = 11,
-        time_s = 1
-        )
-    std_stage_sigs = OrderedDict()
-    tune_stage_sigs = OrderedDict()     # contents defined by caller
-    peak_stats = None
+    
+    def __init__(self):
+        # self.
+        super().__init__() 
+
+        # implement algorithm from SPEC here (tune to signal peak)
+        # see example: https://github.com/prjemian/ipython_ookhd/blob/master/profile_bluesky/startup/11-bs_sim_motors.py#L29
+        self.params = dict(
+            start = -1,
+            finish = 1,
+            num = 11,
+            time_s = 1
+            )
+        self.std_stage_sigs = OrderedDict()
+        self.tune_stage_sigs = OrderedDict()     # contents defined by caller
+        self.peak_stats = None
 
     def tune(self, start=None, finish=None, num=None, time_s=None, md=None):
         """
@@ -269,15 +278,14 @@ class AxisTunerMixin(object):
         RE(myaxis.tune())
 
     """
-
-    tuner = PeakAxisTuner()
     
-    # Hook functions for callers to add additional plan parts
-    # Each must accept one argument: axis object such as `EpicsMotor` or `SynAxis`
-    pre_tune_function = None        # called before `tune()`
-    post_tune_function = None       # called after `tune()`
-
-    # Mixin MUST not provide __init__() method, instead use self.tuner.config()
+    def __init__(self):
+        self.tuner = PeakAxisTuner()
+        
+        # Hook functions for callers to add additional plan parts
+        # Each must accept one argument: axis object such as `EpicsMotor` or `SynAxis`
+        self.pre_tune_function = None        # called before `tune()`
+        self.post_tune_function = None       # called after `tune()`
     
     def tune(self, md=None, **kwargs):
         if self.tuner.axis is None:
@@ -303,6 +311,13 @@ class AxisTunerMixin(object):
             self.post_tune_function(self)
 
 
+def tune_axes(axes):
+    """
+    BlueSky plan to tune a list of axes in sequence
+    """
+    for axis in axes:
+        yield from axis.tune()
+
 #------------------------------------------------------
 
 
@@ -320,7 +335,7 @@ mydet = SynGauss('mydet', myaxis, 'myaxis', center=0.21, Imax=0.98e5, sigma=0.12
 
 myaxis.pre_tune_function = my_pre_tune_hook
 myaxis.post_tune_function = my_post_tune_hook
-myaxis.tuner.set_params(axis=myaxis, det=mydet, num=71)
+myaxis.tuner.set_params(axis=myaxis, det=mydet, num=71, time_s=0.05)
 
 class TunableEpicsMotor(EpicsMotor, AxisTunerMixin):
     pass
@@ -333,4 +348,4 @@ spvoigt = SynPseudoVoigt(
     sigma=0.001 + 0.05*np.random.uniform(), 
     scale=0.95e5,
     bkg=0.01*np.random.uniform())
-m1.tuner.set_params(axis=m1, det=spvoigt, num=71)
+m1.tuner.set_params(axis=m1, det=spvoigt, num=71, time_s=0.1)
