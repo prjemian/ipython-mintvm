@@ -52,6 +52,9 @@ class BusyFlyer(Device):
         
         https://docs.python.org/3/library/subprocess.html#subprocess.run
         """
+        if self._external_running:
+            logging.info("external program already running")
+            return
         try:
             path = os.path.dirname(__file__)
         except NameError as _exc:
@@ -74,19 +77,43 @@ class BusyFlyer(Device):
         """
         tell external program to quit
         """
+        logging.debug("terminating external program(s)")
         yield from mv(self.signal.calc, "0")
         yield from mv(self.signal.proc, 1)
-        logging.info("external program terminated")
+        logging.debug("external program terminated")
 
     def activity(self):
+        """
+        start the busy record and poll for completion
+        
+        It's OK to use blocking calls here 
+        since this is called in a separate thread
+        from the BlueSky RunEngine.
+        """
+        logging.debug("activity()")
+        print("activity()")
         if self._completion_status is None:
             return
 
-        logging.info("activity()")
-        yield from mv(busy.state, 1)
-        # ... waiting for it to complete ...
+        def wait_until_done():
+            msg = "activity()  busy = " + str(self.busy.state.value)
+            logging.debug(msg)
+            while self.busy.state.value not in ("Done", 0):
+                # ... waiting for it to complete ...
+                time.sleep(0.05)
+
+        logging.debug("activity() - clearing Busy")
+        self.busy.state.put("Done") # make sure it's Done first
+        wait_until_done()
+        time.sleep(1.0)
+
+        logging.debug("activity() - setting Busy")
+        self.busy.state.put("Busy")
+        wait_until_done()
+
         self.terminate_external_program()
         self._completion_status._finished(success=True)
+        logging.debug("activity() complete")
 
     def fly(self):
         """
@@ -104,26 +131,30 @@ class BusyFlyer(Device):
         """
         Prepare this Flyer
         """
-        logging.info("set({})".format(value))
+        logging.info('set("{}")'.format(value))
         if value in ("fly",):
             self.terminate_external_program()   # belt+suspenders approach
             self.launch_external_program()
     
+            self._data = deque()
+
+            self._completion_status = DeviceStatus(device=self)
+
+            logging.debug('set() starting thread')
+            thread = threading.Thread(target=self.activity, daemon=True)
+            thread.start()
+            logging.debug(str(self._completion_status))
+
+            return self._completion_status
+
     def kickoff(self):
         """
         Start this Flyer
         """
+        logging.debug("kickoff()")
         if self._completion_status is not None:
             raise RuntimeError("Already kicked off.")
-        self._data = deque()
-
-        self._completion_status = DeviceStatus(device=self)
-
-        logging.info("kickoff()")
-        thread = threading.Thread(target=self.activity, daemon=True)
-        thread.start()
-
-        return self._completion_status
+        yield from mv(self.busy.state, "Busy")
     
     def describe_collect(self):
         """
