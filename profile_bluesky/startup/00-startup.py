@@ -35,9 +35,10 @@ def append_wa_motor_list(*motorlist):
 
 # Uncomment the following lines to turn on 
 # verbose messages for debugging.
-# import logging
+import logging
 # ophyd.logger.setLevel(logging.DEBUG)
-# logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.DEBUG)
+#logging.basicConfig(level=logging.INFO)
 
 # needed for the EPICS areaDetector SimDetector (12M + 100)
 os.environ["EPICS_CA_MAX_ARRAY_BYTES"] = "12000100"
