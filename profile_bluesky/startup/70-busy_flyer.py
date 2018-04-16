@@ -80,6 +80,7 @@ class BusyFlyer(Device):
         logging.debug("terminating external program(s)")
         yield from mv(self.signal.calc, "0")
         yield from mv(self.signal.proc, 1)
+        yield from sleep(1.0)
         logging.debug("external program terminated")
 
     def activity(self):
@@ -151,7 +152,7 @@ class BusyFlyer(Device):
         """
         Start this Flyer
         """
-        logging.debug("kickoff()")
+        logging.info("kickoff()")
         if self._completion_status is not None:
             raise RuntimeError("Already kicked off.")
         yield from mv(self.busy.state, "Busy")
