@@ -5,6 +5,7 @@ print(__file__)
 from collections import deque, OrderedDict
 import os
 import subprocess
+from ophyd.utils import OrderedDefaultDict
 
 
 class BusyRecord(Device):
@@ -45,7 +46,8 @@ class BusyFlyer(Device):
         self._completion_status = None
         self._data = deque()
         self._external_running = False
-   
+        self.stream_name = None
+
     def launch_external_program(self):
         """
         launch external program in a thread
@@ -73,14 +75,24 @@ class BusyFlyer(Device):
         thread = threading.Thread(target=_runner, daemon=True)
         thread.start()
    
+    def terminate_external_program_in_RE(self):
+        """
+        tell external program to quit while in RunEngine
+        """
+        logging.debug("terminating external program(s) in RunEngine")
+        yield from mv(self.signal.calc, "0")
+        yield from mv(self.signal.proc, 1)
+        sleep(1.0)
+        logging.debug("external program terminated")
+   
     def terminate_external_program(self):
         """
         tell external program to quit
         """
         logging.debug("terminating external program(s)")
-        yield from mv(self.signal.calc, "0")
-        yield from mv(self.signal.proc, 1)
-        yield from sleep(1.0)
+        self.signal.calc.put("0")
+        self.signal.put(1)
+        time.sleep(1.0)
         logging.debug("external program terminated")
 
     def activity(self):
@@ -91,9 +103,9 @@ class BusyFlyer(Device):
         since this is called in a separate thread
         from the BlueSky RunEngine.
         """
-        logging.debug("activity()")
-        print("activity()")
+        logging.info("activity()")
         if self._completion_status is None:
+            logging.debug("leaving activity() - not complete")
             return
 
         def wait_until_done():
@@ -116,84 +128,81 @@ class BusyFlyer(Device):
         self._completion_status._finished(success=True)
         logging.debug("activity() complete")
 
-    def fly(self):
-        """  TODO: delete this method
-        use this method to run the fly scan
-        
-        As in::
-        
-            ifly = BusyFlyer()
-            RE(ifly.fly())
-        
-        """
-        yield from mv(self, "fly")
-        
-    def set(self, value):
-        """
-        Prepare this Flyer
-        """
-        # TODO: transfer this work to kickoff()
-        logging.info('set("{}")'.format(value))
-        if value in ("fly",):
-            self.terminate_external_program()   # belt+suspenders approach
-            self.launch_external_program()
-    
-            self._data = deque()
-
-            self._completion_status = DeviceStatus(device=self)
-
-            logging.debug('set() starting thread')
-            thread = threading.Thread(target=self.activity, daemon=True)
-            thread.start()
-            logging.debug(str(self._completion_status))
-
-            return self._completion_status
-
     def kickoff(self):
         """
         Start this Flyer
         """
-        # TODO: build this similar to Flyers in ophyd
         logging.info("kickoff()")
-        if self._completion_status is not None:
-            raise RuntimeError("Already kicked off.")
-        yield from mv(self.busy.state, "Busy")
-        # TODO: pay attention to the status
         # https://github.com/NSLS-II/ophyd/blob/master/ophyd/flyers.py#L126
-    
-    def describe_collect(self):
-        """
-        Provide schema & meta-data from ``collect()``
-        """
-        logging.info("describe_collect()")
-        pass
+
+        self._collected_data = OrderedDefaultDict(lambda: {'values': [],
+                                                           'timestamps': []})
+
+        self.terminate_external_program_in_RE()   # belt+suspenders approach
+        self.launch_external_program()
+        self._completion_status = DeviceStatus(self)
+        
+        thread = threading.Thread(target=self.activity, daemon=True)
+        thread.start()
+
+        status = DeviceStatus(self)
+        status._finished(success=True)
+        return status
     
     def complete(self):
         """
         Wait for flying to be complete
         """
+        logging.info("complete()")
         if self._completion_status is None:
             raise RuntimeError("No collection in progress")
-        
-        # TODO: something?
-        logging.info("complete()")
 
-        return self._completion_status
+        st = DeviceStatus(self)
+        st._finished(success=True)
+        return st
+    
+    def pause(self):
+        '''Pause acquisition'''
+        logging.info("pause()")
+        super().pause()
+
+    def resume(self):
+        '''Resume acquisition'''
+        logging.info("resume()")
+        super().resume()
+
+    def describe_collect(self):
+        """
+        Describe details for ``collect()`` method
+        """
+        logging.info("describe_collect()")
+        collectors = [s+"Arr_wave" for s in "x y".split()]
+        desc = self._describe_attr_list(collectors)
+        return {self.stream_name: desc}
     
     def collect(self):
         """
         Retrieve data from the Flyer as *proto-events*
 
-        Yields:	
-
-        event_data : dict
-
-            Must have the keys {‘time’, ‘timestamps’, ‘data’}.
+        Yields::
+        
+            event_data : dict
+                Must have the keys {'time', 'timestamps', 'data'}.
 
         """
-        # TODO: want to monitor the two arrays
         logging.info("collect()")
-        pass
+        for i in range(len(self.xArr.wave.value)):
+            logging.info("collect() #{}".format(i+1))
+            t = time.time()     # fake these for now
+            for arr in (self.xArr, self.yArr):
+                v = arr.wave.value[i]
+                msg = "collect(): #{} {}={} at {}".format(i+1, arr.wave.name, v, t)
+                logging.info(msg)
+                yield dict(
+                    data={arr.wave.name: v},
+                    timestamps={arr.wave.name: t},
+                    time=t
+                )
 
     def stop(self, *, success=False):
         """
@@ -207,5 +216,5 @@ class BusyFlyer(Device):
 ifly = BusyFlyer(name="ifly")
 
 
-# RE(bp.fly([ifly.??, md=dict(purpose="develop busy flyer model")]))
+# RE(bp.fly([ifly], md=dict(purpose="develop busy flyer model")))
 # https://github.com/NSLS-II/bluesky/blob/master/bluesky/plans.py#L1415
