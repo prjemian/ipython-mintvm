@@ -117,7 +117,7 @@ class BusyFlyer(Device):
         logging.debug("activity() complete")
 
     def fly(self):
-        """
+        """  TODO: delete this method
         use this method to run the fly scan
         
         As in::
@@ -132,6 +132,7 @@ class BusyFlyer(Device):
         """
         Prepare this Flyer
         """
+        # TODO: transfer this work to kickoff()
         logging.info('set("{}")'.format(value))
         if value in ("fly",):
             self.terminate_external_program()   # belt+suspenders approach
@@ -152,10 +153,13 @@ class BusyFlyer(Device):
         """
         Start this Flyer
         """
+        # TODO: build this similar to Flyers in ophyd
         logging.info("kickoff()")
         if self._completion_status is not None:
             raise RuntimeError("Already kicked off.")
         yield from mv(self.busy.state, "Busy")
+        # TODO: pay attention to the status
+        # https://github.com/NSLS-II/ophyd/blob/master/ophyd/flyers.py#L126
     
     def describe_collect(self):
         """
@@ -200,8 +204,8 @@ class BusyFlyer(Device):
         yield from mv(motor.stop, 0)
 
 
-def fly_it(flyer):
-    yield from flyer.fly()
-
-
 ifly = BusyFlyer(name="ifly")
+
+
+# RE(bp.fly([ifly.??, md=dict(purpose="develop busy flyer model")]))
+# https://github.com/NSLS-II/bluesky/blob/master/bluesky/plans.py#L1415
