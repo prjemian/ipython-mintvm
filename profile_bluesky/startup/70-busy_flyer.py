@@ -6,6 +6,10 @@ from collections import deque, OrderedDict
 import os
 import subprocess
 from ophyd.utils import OrderedDefaultDict
+from enum import Enum
+
+
+logger = logging.getLogger(os.path.split(__file__)[-1])
 
 
 class BusyStatus(str, Enum):
@@ -60,7 +64,7 @@ class BusyFlyer(Device):
         https://docs.python.org/3/library/subprocess.html#subprocess.run
         """
         if self._external_running:
-            logging.info("external program already running")
+            logger.info("external program already running")
             return
         try:
             path = os.path.dirname(__file__)
@@ -71,11 +75,11 @@ class BusyFlyer(Device):
         
         def _runner():
             self._external_running = True
-            logging.info("starting external program")
+            logger.info("starting external program")
             # subprocess.run() is a blocking call
             subprocess.run([path, "/dev/null"], stdout=subprocess.PIPE)
             self._external_running = False
-            logging.info("external program ended")
+            logger.info("external program ended")
         
         thread = threading.Thread(target=_runner, daemon=True)
         thread.start()
@@ -84,21 +88,21 @@ class BusyFlyer(Device):
         """
         tell external program to quit while in RunEngine
         """
-        logging.debug("terminating external program(s) in RunEngine")
+        logger.debug("terminating external program(s) in RunEngine")
         yield from mv(self.signal.calc, "0")
         yield from mv(self.signal.proc, 1)
         sleep(1.0)
-        logging.debug("external program terminated")
+        logger.debug("external program terminated")
    
     def terminate_external_program(self):
         """
         tell external program to quit
         """
-        logging.debug("terminating external program(s)")
+        logger.debug("terminating external program(s)")
         self.signal.calc.put("0")
         self.signal.proc.put(1)
         time.sleep(1.0)
-        logging.debug("external program terminated")
+        logger.debug("external program terminated")
 
     def activity(self):
         """
@@ -108,36 +112,36 @@ class BusyFlyer(Device):
         since this is called in a separate thread
         from the BlueSky RunEngine.
         """
-        logging.info("activity()")
+        logger.info("activity()")
         if self._completion_status is None:
-            logging.debug("leaving activity() - not complete")
+            logger.debug("leaving activity() - not complete")
             return
 
         def wait_until_done():
             msg = "activity()  busy = " + str(self.busy.state.value)
-            logging.debug(msg)
+            logger.debug(msg)
             while self.busy.state.value not in (BusyStatus.done, 0):
                 # ... waiting for it to complete ...
                 time.sleep(0.05)
 
-        logging.debug("activity() - clearing Busy")
+        logger.debug("activity() - clearing Busy")
         self.busy.state.put(BusyStatus.done) # make sure it's Done first
         wait_until_done()
         time.sleep(1.0)
 
-        logging.debug("activity() - setting Busy")
+        logger.debug("activity() - setting Busy")
         self.busy.state.put(BusyStatus.busy)
         wait_until_done()
 
         self.terminate_external_program()
         self._completion_status._finished(success=True)
-        logging.debug("activity() complete")
+        logger.debug("activity() complete")
 
     def kickoff(self):
         """
         Start this Flyer
         """
-        logging.info("kickoff()")
+        logger.info("kickoff()")
         # https://github.com/NSLS-II/ophyd/blob/master/ophyd/flyers.py#L126
 
         self._collected_data = OrderedDefaultDict(lambda: {'values': [],
@@ -158,7 +162,7 @@ class BusyFlyer(Device):
         """
         Wait for flying to be complete
         """
-        logging.info("complete()")
+        logger.info("complete()")
         if self._completion_status is None:
             raise RuntimeError("No collection in progress")
 
@@ -168,19 +172,19 @@ class BusyFlyer(Device):
     
     def pause(self):
         '''Pause acquisition'''
-        logging.info("pause()")
+        logger.info("pause()")
         super().pause()
 
     def resume(self):
         '''Resume acquisition'''
-        logging.info("resume()")
+        logger.info("resume()")
         super().resume()
 
     def describe_collect(self):
         """
         Describe details for ``collect()`` method
         """
-        logging.info("describe_collect()")
+        logger.info("describe_collect()")
         collectors = "xArr yArr".split()
         desc = self._describe_attr_list(collectors)
         return {self.stream_name: desc}
@@ -195,28 +199,28 @@ class BusyFlyer(Device):
                 Must have the keys {'time', 'timestamps', 'data'}.
 
         """
-        logging.info("collect()")
-        logging.info("collect() stream_name={}".format(self.stream_name))
+        logger.info("collect()")
+        logger.info("collect() stream_name={}".format(self.stream_name))
         for i in range(len(self.xArr.wave.value)):
-            logging.info("collect() #{}".format(i+1))
+            logger.info("collect() #{}".format(i+1))
             data_dict = {}
             ts_dict = {}
             t = time.time()     # fake these for now
-            logging.info("collect() time={}".format(t))
+            logger.info("collect() time={}".format(t))
             for arr in (self.xArr, self.yArr):
                 data_dict[arr.wave.name] = arr.wave.value[i]
                 ts_dict[arr.wave.name] = t
-            logging.info("collect() data={}".format(data_dict))
+            logger.info("collect() data={}".format(data_dict))
             # yield dict(data=data_dict, timestamps=ts_dict, time=t, seq_num=i+1)
             yield {'data':data_dict, 'timestamps':ts_dict, 'time':t, 'seq_num':i+1}
 
-            logging.info("collect() after yield")
+            logger.info("collect() after yield")
 
     def stop(self, *, success=False):
         """
         halt activity (motion) before it is complete
         """
-        logging.info("stop()")
+        logger.info("stop()")
         yield from mv(busy.state, 0)
         yield from mv(motor.stop, 0)
 
