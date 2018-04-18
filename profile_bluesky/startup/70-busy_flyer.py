@@ -187,7 +187,7 @@ class BusyFlyer(Device):
         logger.info("describe_collect()")
         collectors = "xArr yArr".split()
         desc = self._describe_attr_list(collectors)
-        return {self.stream_name: desc}
+        return {self.name: desc}
     
     def collect(self):
         """
