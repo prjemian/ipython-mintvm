@@ -91,7 +91,7 @@ class BusyFlyer(Device):
         """
         logging.debug("terminating external program(s)")
         self.signal.calc.put("0")
-        self.signal.put(1)
+        self.signal.proc.put(1)
         time.sleep(1.0)
         logging.debug("external program terminated")
 
