@@ -41,12 +41,12 @@ class BusyFlyer(Device):
     xArr = Component(MyWaveform, 'prj:x_array')
     yArr = Component(MyWaveform, 'prj:y_array')
     
-    def __init__(self, **kwargs):
+    def __init__(self, stream_name=None, **kwargs):
         super().__init__('', parent=None, **kwargs)
         self._completion_status = None
         self._data = deque()
         self._external_running = False
-        self.stream_name = None
+        self.stream_name = stream_name
 
     def launch_external_program(self):
         """
@@ -140,12 +140,12 @@ class BusyFlyer(Device):
 
         self.terminate_external_program_in_RE()   # belt+suspenders approach
         self.launch_external_program()
-        self._completion_status = DeviceStatus(self)
+        self._completion_status = DeviceStatus(self.busy.state)
         
         thread = threading.Thread(target=self.activity, daemon=True)
         thread.start()
 
-        status = DeviceStatus(self)
+        status = DeviceStatus(self.busy.state)
         status._finished(success=True)
         return status
     
@@ -191,6 +191,7 @@ class BusyFlyer(Device):
 
         """
         logging.info("collect()")
+        logging.info("collect() stream_name={}".format(self.stream_name))
         for i in range(len(self.xArr.wave.value)):
             logging.info("collect() #{}".format(i+1))
             data_dict = {}
