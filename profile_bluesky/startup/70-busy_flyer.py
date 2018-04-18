@@ -208,8 +208,8 @@ class BusyFlyer(Device):
             t = time.time()     # fake these for now
             logger.info("collect() time={}".format(t))
             for arr in (self.xArr, self.yArr):
-                data_dict[arr.wave.name] = arr.wave.value[i]
-                ts_dict[arr.wave.name] = t
+                data_dict[arr.name] = arr.wave.value[i]
+                ts_dict[arr.name] = t
             logger.info("collect() data={}".format(data_dict))
             # yield dict(data=data_dict, timestamps=ts_dict, time=t, seq_num=i+1)
             yield {'data':data_dict, 'timestamps':ts_dict, 'time':t, 'seq_num':i+1}
