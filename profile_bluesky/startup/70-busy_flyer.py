@@ -53,7 +53,6 @@ class BusyFlyer(Device):
     def __init__(self, stream_name=None, **kwargs):
         super().__init__('', parent=None, **kwargs)
         self._completion_status = None
-        self._data = deque()
         self._external_running = False
         self.stream_name = stream_name
 
@@ -142,11 +141,6 @@ class BusyFlyer(Device):
         Start this Flyer
         """
         logger.info("kickoff()")
-        # https://github.com/NSLS-II/ophyd/blob/master/ophyd/flyers.py#L126
-
-        self._collected_data = OrderedDefaultDict(lambda: {'values': [],
-                                                           'timestamps': []})
-
         self.terminate_external_program_in_RE()   # belt+suspenders approach
         self.launch_external_program()
         self._completion_status = DeviceStatus(self.busy.state)
