@@ -176,7 +176,7 @@ class BusyFlyer(Device):
         Describe details for ``collect()`` method
         """
         logging.info("describe_collect()")
-        collectors = [s+"Arr_wave" for s in "x y".split()]
+        collectors = "xArr yArr".split()
         desc = self._describe_attr_list(collectors)
         return {self.stream_name: desc}
     
@@ -193,16 +193,13 @@ class BusyFlyer(Device):
         logging.info("collect()")
         for i in range(len(self.xArr.wave.value)):
             logging.info("collect() #{}".format(i+1))
+            data_dict = {}
+            ts_dict = {}
             t = time.time()     # fake these for now
             for arr in (self.xArr, self.yArr):
-                v = arr.wave.value[i]
-                msg = "collect(): #{} {}={} at {}".format(i+1, arr.wave.name, v, t)
-                logging.info(msg)
-                yield dict(
-                    data={arr.wave.name: v},
-                    timestamps={arr.wave.name: t},
-                    time=t
-                )
+                data_dict[arr.wave.name] = arr.wave.value[i]
+                ts_dict[arr.wave.name] = t
+            yield dict(data=data_dict, timestamps=ts_dict, time=t)
 
     def stop(self, *, success=False):
         """
