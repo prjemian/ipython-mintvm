@@ -8,6 +8,11 @@ import subprocess
 from ophyd.utils import OrderedDefaultDict
 
 
+class BusyStatus(str, Enum):
+    busy = "Busy"
+    done = "Done"
+
+
 class BusyRecord(Device):
     """a busy record sets the fly scan into action"""
     state = Component(EpicsSignal, "")
@@ -111,17 +116,17 @@ class BusyFlyer(Device):
         def wait_until_done():
             msg = "activity()  busy = " + str(self.busy.state.value)
             logging.debug(msg)
-            while self.busy.state.value not in ("Done", 0):
+            while self.busy.state.value not in (BusyStatus.done, 0):
                 # ... waiting for it to complete ...
                 time.sleep(0.05)
 
         logging.debug("activity() - clearing Busy")
-        self.busy.state.put("Done") # make sure it's Done first
+        self.busy.state.put(BusyStatus.done) # make sure it's Done first
         wait_until_done()
         time.sleep(1.0)
 
         logging.debug("activity() - setting Busy")
-        self.busy.state.put("Busy")
+        self.busy.state.put(BusyStatus.busy)
         wait_until_done()
 
         self.terminate_external_program()
@@ -202,7 +207,9 @@ class BusyFlyer(Device):
                 data_dict[arr.wave.name] = arr.wave.value[i]
                 ts_dict[arr.wave.name] = t
             logging.info("collect() data={}".format(data_dict))
-            yield dict(data=data_dict, timestamps=ts_dict, time=t)
+            # yield dict(data=data_dict, timestamps=ts_dict, time=t, seq_num=i+1)
+            yield {'data':data_dict, 'timestamps':ts_dict, 'time':t, 'seq_num':i+1}
+
             logging.info("collect() after yield")
 
     def stop(self, *, success=False):
