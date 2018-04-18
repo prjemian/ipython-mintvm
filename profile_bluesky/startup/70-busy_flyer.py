@@ -196,10 +196,13 @@ class BusyFlyer(Device):
             data_dict = {}
             ts_dict = {}
             t = time.time()     # fake these for now
+            logging.info("collect() time={}".format(t))
             for arr in (self.xArr, self.yArr):
                 data_dict[arr.wave.name] = arr.wave.value[i]
                 ts_dict[arr.wave.name] = t
+            logging.info("collect() data={}".format(data_dict))
             yield dict(data=data_dict, timestamps=ts_dict, time=t)
+            logging.info("collect() after yield")
 
     def stop(self, *, success=False):
         """
