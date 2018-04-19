@@ -9,34 +9,95 @@ Coded here to meet an imposing deadline.
 """
 
 logger = logging.getLogger(os.path.split(__file__)[-1])
-POLL_SLEEP_S = 0.05
 
 
 class ApsBusyFlyScanDeviceMixin(object):
     """
     support APS Fly Scans that are operated by a busy record
+    
+    This will not generate BlueSky events to inject data into the
+    databroker.  Any data collection must be handled during
+    the various hook functions.
+    
+    .. autosummary:
+       ~flyscan_plan
+       ~hook_pre_flyscan
+       ~hook_post_flyscan
+       ~hook_flyscan_wait_not_scanning
+       ~hook_flyscan_wait_scanning
+       ~flyscan_wait
+       ~_flyscan
+    
     """
 
-    def __init__(self, stream_name=None, **kwargs):
+    def __init__(self, **kwargs):
         self._flyscan_status = None
+        self.poll_sleep_interval_s = 0.05
     
-    def pre_flyscan_hook(self, *args, **kwargs):
+    def hook_flyscan(self):
         """
-        things to be done before the fly scan
+        Customize: called during fly scan
+        
+        called from RunEngine thread in ``flyscan_plan()``, 
+        blocking calls are not permitted
+        """
+        logger.debug("hook_flyscan_not_scanning() : no-op default")
+    
+    def hook_pre_flyscan(self):
+        """
+        Customize: called before the fly scan
         
         NOTE: As part of a BlueSky plan thread, no blocking calls are permitted
         """
-        logger.debug("pre_flyscan_hook() : no-op default")
+        logger.debug("hook_pre_flyscan() : no-op default")
     
-    def post_flyscan_hook(self, *args, **kwargs):
+    def hook_post_flyscan(self):
         """
-        things to be done after the fly scan
+        Customize: called after the fly scan
         
         NOTE: As part of a BlueSky plan thread, no blocking calls are permitted
         """
-        logger.debug("post_flyscan_hook() : no-op default")
+        logger.debug("hook_post_flyscan() : no-op default")
+    
+    def hook_flyscan_wait_not_scanning(self):
+        """
+        Customize: called ``flyscan_wait(False)``
+        
+        called in separate thread, blocking calls are permitted
+        but keep it quick
+        """
+        logger.debug("hook_flyscan_not_scanning() : no-op default")
 
-    def fly_scan(self):
+    def hook_flyscan_wait_scanning(self):
+        """
+        Customize: called from ``flyscan_wait(True)``
+        
+        called in separate thread, blocking calls are permitted
+        but keep it quick
+        """
+        logger.debug("hook_flyscan_wait_scanning() : no-op default")
+
+    def flyscan_wait(self, scanning):
+        """
+        wait for the busy record to return to Done
+        
+        Call external hook functions to allow customizations
+        """
+        msg = "flyscan_wait()"
+        msg += " scanning=" + str(scanning)
+        msg += " busy=" + str(self.busy.state.value)
+        logger.debug(msg)
+
+        if scanning:
+            hook = self.hook_flyscan_wait_scanning
+        else:
+            hook = self.hook_flyscan_wait_not_scanning
+
+        while self.busy.state.value not in (BusyStatus.done, 0):
+            hook()
+            time.sleep(self.poll_sleep_interval_s)  # wait to complete ...
+
+    def _flyscan(self):
         """
         start the busy record and poll for completion
         
@@ -44,29 +105,22 @@ class ApsBusyFlyScanDeviceMixin(object):
         since this is called in a separate thread
         from the BlueSky RunEngine.
         """
-        logger.info("fly_scan()")
+        logger.info("flyscan()")
         if self._flyscan_status is None:
             logger.debug("leaving fly_scan() - not complete")
             return
 
-        def wait_until_not_busy():
-            msg = "fly_scan()  busy = " + str(self.busy.state.value)
-            logger.debug(msg)
-            while self.busy.state.value not in (BusyStatus.done, 0):
-                # ... waiting for it to complete ...
-                time.sleep(POLL_SLEEP_S)
-
-        logger.debug("fly_scan() - clearing Busy")
+        logger.debug("flyscan() - clearing Busy")
         self.busy.state.put(BusyStatus.done) # make sure it's Done first
-        wait_until_not_busy()
+        self.flyscan_wait(False)
         time.sleep(1.0)
 
-        logger.debug("fly_scan() - setting Busy")
+        logger.debug("flyscan() - setting Busy")
         self.busy.state.put(BusyStatus.busy)
-        wait_until_not_busy()
+        self.flyscan_wait(True)
 
         self._flyscan_status._finished(success=True)
-        logger.debug("fly_scan() complete")
+        logger.debug("flyscan() complete")
     
     def flyscan_plan(self, *args, **kwargs):
         """
@@ -75,34 +129,101 @@ class ApsBusyFlyScanDeviceMixin(object):
         logger.info("plan()")
         yield from bpp.open_run()
 
-        self.pre_flyscan_hook()
+        self.hook_pre_flyscan()
         self._flyscan_status = DeviceStatus(self.busy.state)
         
-        thread = threading.Thread(target=self.fly_scan, daemon=True)
+        thread = threading.Thread(target=self._flyscan, daemon=True)
         thread.start()
         
         while not self._flyscan_status.done:
-            bps.sleep(POLL_SLEEP_S)
+            self.hook_flyscan()
+            bps.sleep(self.poll_sleep_interval_s)
         logger.debug("plan() status=" + str(self._flyscan_status))
-        self.post_flyscan_hook()
+        self.hook_post_flyscan()
 
         yield from bpp.close_run()
-        logger.info("plan() complete")
+        logger.debug("plan() complete")
+
+
+class PythonPseudoController(object):
+    """
+    use the busyExample.py code to make a pseudo fly scan
+    """
+    
+    def __init__(self, swait, **kwargs):
+        self._external_running = False
+        self.swait = swait
+    
+    def _get_file_name(self):
+        try:
+            path = os.path.dirname(__file__)
+        except NameError as _exc:
+            # interactive use
+            path = os.path.abspath(".")
+        return os.path.join(path, "local_code", "busyExample.py")
+    
+    def _start(self, python_file_name):
+        """
+        run the external program as a subprocess 
+        
+        note: the caller launches this in a separate thread
+        """
+        self._external_running = True
+        logger.debug("starting external program")
+        # subprocess.run() is a blocking call
+        subprocess.run([python_file_name, "/dev/null"], stdout=subprocess.PIPE)
+        self._external_running = False
+        logger.debug("external program ended")
+    
+    def _stop(self):
+        """
+        configure swait record to signal external program to quit
+        """
+        self.swait.calc.put("0")
+        self.swait.proc.put(1)
+        time.sleep(1.0)
+
+    def launch(self):
+        """
+        start external program (in a thread)
+        """
+        logger.debug("PythonPseudoController.launch()")
+        if self._external_running:
+            logger.debug("PythonPseudoController.launch() already running")
+            return
+        fname = self._get_file_name()
+        
+        thread = threading.Thread(target=self._start, args=[fname], daemon=True)
+        thread.start()
+    
+    def terminate(self):
+        """
+        signal external program to quit
+        """
+        logger.debug("PythonPseudoController.terminate()")
+        if not self._external_running:
+            logger.debug("PythonPseudoController.launch() not known to be running")
+            return
+
+        thread = threading.Thread(target=self._stop, daemon=True)
+        thread.start()
+        logger.debug("external program signalled to end")
 
 
 class ApsBusyFlyScanDevice(Device, ApsBusyFlyScanDeviceMixin):
     """
-    use the busyExample.py code to make a pseudo fly scan
+    BlueSky interface for the busyExample.py fly scan
     """
     busy = Component(BusyRecord, 'prj:mybusy')
-    motor = Component(EpicsMotor, 'prj:m1')
+    # motor = Component(EpicsMotor, 'prj:m1')
     signal = Component(MyCalc, 'prj:userCalc1')
     xArr = Component(MyWaveform, 'prj:x_array')
     yArr = Component(MyWaveform, 'prj:y_array')
     
-    def __init__(self, stream_name=None, **kwargs):
+    def __init__(self, **kwargs):
         super().__init__('', parent=None, **kwargs)
         self._external_running = False
+        self.controller = PythonPseudoController(self.signal)
 
     def launch_external_program(self):
         """
@@ -113,33 +234,7 @@ class ApsBusyFlyScanDevice(Device, ApsBusyFlyScanDeviceMixin):
         if self._external_running:
             logger.debug("external program already running")
             return
-        try:
-            path = os.path.dirname(__file__)
-        except NameError as _exc:
-            # interactive use
-            path = os.path.abspath(".")
-        path = os.path.join(path, "local_code", "busyExample.py")
-        
-        def _runner():
-            self._external_running = True
-            logger.debug("starting external program")
-            # subprocess.run() is a blocking call
-            subprocess.run([path, "/dev/null"], stdout=subprocess.PIPE)
-            self._external_running = False
-            logger.debug("external program ended")
-        
-        thread = threading.Thread(target=_runner, daemon=True)
-        thread.start()
-   
-    def terminate_external_program_in_RE(self):
-        """
-        tell external program to quit while in RunEngine, non-blocking
-        """
-        logger.info("terminating external program(s) in RunEngine")
-        yield from mv(self.signal.calc, "0")
-        yield from mv(self.signal.proc, 1)
-        bps.sleep(1.0)
-        logger.debug("external program terminated")
+        self.controller.launch()
    
     def terminate_external_program(self):
         """
@@ -148,28 +243,37 @@ class ApsBusyFlyScanDevice(Device, ApsBusyFlyScanDeviceMixin):
         blocking calls OK, good for command-line use
         """
         logger.info("terminating external program(s)")
-        self.signal.calc.put("0")
-        self.signal.proc.put(1)
-        time.sleep(1.0)
-        logger.debug("external program terminated")
+        self.controller.terminate()
 
-    def pre_flyscan_hook(self, *args, **kwargs):
+    def hook_pre_flyscan(self, *args, **kwargs):
         """
         run before the fly scan
         """
-        logger.debug("pre_flyscan_hook() : no-op default")
+        logger.debug("hook_pre_flyscan() : no-op default")
         
         # belt+suspenders approach
         # exactly *one* instance of external should be running
-        self.terminate_external_program_in_RE()
-        self.launch_external_program()
+        self.controller.terminate()
+        self.controller.launch()
     
-    def post_flyscan_hook(self, *args, **kwargs):
+    def report(self):
+        print("scan data")
+        print("#\tx\ty")
+        for i in range(int(self.xArr.number_read.value)):
+            print("{}\t{}\t{}".format(
+                i+1,
+                self.xArr.wave.value[i],
+                self.yArr.wave.value[i]
+                )
+            )
+
+    def hook_post_flyscan(self, *args, **kwargs):
         """
         run after the fly scan
         """
-        logger.debug("post_flyscan_hook() : no-op default")
-        self.terminate_external_program_in_RE()
+        logger.debug("hook_post_flyscan() : no-op default")
+        self.controller.terminate()
+        self.report()
 
 
 ifly = ApsBusyFlyScanDevice(name="ifly")
