@@ -17,6 +17,7 @@ class ApsBusyFlyScanDevice(Device):
     
     http://nsls-ii.github.io/ophyd/architecture.html#fly-able-interface
     """
+    # TODO: some of the methods below might comprise a generic Mixin
     busy = Component(BusyRecord, 'prj:mybusy')
     motor = Component(EpicsMotor, 'prj:m1')
     signal = Component(MyCalc, 'prj:userCalc1')
@@ -60,21 +61,21 @@ class ApsBusyFlyScanDevice(Device):
         """
         tell external program to quit while in RunEngine
         """
-        logger.debug("terminating external program(s) in RunEngine")
+        logger.info("terminating external program(s) in RunEngine")
         yield from mv(self.signal.calc, "0")
         yield from mv(self.signal.proc, 1)
         sleep(1.0)
-        logger.debug("external program terminated")
+        logger.info("external program terminated")
    
     def terminate_external_program(self):
         """
         tell external program to quit
         """
-        logger.debug("terminating external program(s)")
+        logger.info("terminating external program(s)")
         self.signal.calc.put("0")
         self.signal.proc.put(1)
         time.sleep(1.0)
-        logger.debug("external program terminated")
+        logger.info("external program terminated")
 
     def activity(self):
         """
@@ -86,37 +87,33 @@ class ApsBusyFlyScanDevice(Device):
         """
         logger.info("activity()")
         if self._completion_status is None:
-            logger.debug("leaving activity() - not complete")
+            logger.info("leaving activity() - not complete")
             return
 
-        def wait_until_done():
+        def wait_until_not_busy():
             msg = "activity()  busy = " + str(self.busy.state.value)
             logger.debug(msg)
             while self.busy.state.value not in (BusyStatus.done, 0):
                 # ... waiting for it to complete ...
                 time.sleep(0.05)
 
-        logger.debug("activity() - clearing Busy")
+        logger.info("activity() - clearing Busy")
         self.busy.state.put(BusyStatus.done) # make sure it's Done first
-        wait_until_done()
+        wait_until_not_busy()
         time.sleep(1.0)
 
-        logger.debug("activity() - setting Busy")
+        logger.info("activity() - setting Busy")
         self.busy.state.put(BusyStatus.busy)
-        wait_until_done()
+        wait_until_not_busy()
 
         self.terminate_external_program()
         self._completion_status._finished(success=True)
-        logger.debug("activity() complete")
+        logger.info("activity() complete")
+        logger.info("activity() status=" + str(self._completion_status))
     
-    def run(self):
-        logger.debug("run()")
-        yield from bp.mv(self, "fly")
-
-    def set(self, value):
-        logger.debug("run() value={}".format(value))
-        if value not in ("fly"):
-            return
+    def plan(self):
+        logger.info("plan()")
+        yield from bpp.open_run()
 
         self.terminate_external_program_in_RE()   # belt+suspenders approach
         self.launch_external_program()
@@ -124,9 +121,14 @@ class ApsBusyFlyScanDevice(Device):
         
         thread = threading.Thread(target=self.activity, daemon=True)
         thread.start()
+        
+        # TODO: how to wait until self._completion_status is done?
+        logger.info("plan() status=" + str(self._completion_status))
 
-        pass        # TODO: fill this out
+        yield from bpp.close_run()
+        logger.info("plan() complete")
+        logger.info("plan() status=" + str(self._completion_status))
 
 
 ifly = ApsBusyFlyScanDevice(name="ifly")
-# RE(ifly.run(), md=dict(purpose="develop busy flyer model")))
+# RE(ifly.plan(), md=dict(purpose="develop busy flyer model")))
