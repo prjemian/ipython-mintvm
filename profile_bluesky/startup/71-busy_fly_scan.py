@@ -303,17 +303,18 @@ class ApsBusyFlyScanDevice(Device, ApsBusyFlyScanDeviceMixin):
         logger.debug("hook_flyscan_wait_not_scanning() : no-op default")
         t = time.time()
         if t > self.update_time:
-            self.update_time = time.time() + self.update_interval
+            self.update_time = t + self.update_interval
 
     def hook_flyscan_wait_scanning(self):
         """
         Customize: called from ``flyscan_wait(True)``
         """
         logger.debug("hook_flyscan_wait_scanning() : no-op default")
-        if time.time() > self.update_time:
-            self.update_time = time.time() + self.update_interval
-            logger.debug("waiting {} s".format(time.time() - self.t0))
+        t = time.time()
+        if t > self.update_time:
+            self.update_time = t + self.update_interval
+            logger.debug("waiting {} s".format(t - self.t0))
 
 #ifly = ApsBusyFlyScanDevice(name="ifly")
 #ifly.update_interval = 5
-# RE(ifly.flyscan_plan(), md=dict(purpose="develop busy flyer model"))
+# RE(ifly.flyscan_plan(), md=dict(purpose="develop busy fly scan model"))
