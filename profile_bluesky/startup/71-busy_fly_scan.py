@@ -21,6 +21,7 @@ class ApsBusyFlyScanDeviceMixin(object):
     
     .. autosummary:
        ~flyscan_plan
+       ~hook_flyscan
        ~hook_pre_flyscan
        ~hook_post_flyscan
        ~hook_flyscan_wait_not_scanning
@@ -105,7 +106,7 @@ class ApsBusyFlyScanDeviceMixin(object):
         since this is called in a separate thread
         from the BlueSky RunEngine.
         """
-        logger.info("flyscan()")
+        logger.debug("_flyscan()")
         if self._flyscan_status is None:
             logger.debug("leaving fly_scan() - not complete")
             return
@@ -126,7 +127,7 @@ class ApsBusyFlyScanDeviceMixin(object):
         """
         This is the BlueSky plan to submit to the RunEgine
         """
-        logger.info("plan()")
+        logger.debug("flyscan_plan()")
         yield from bpp.open_run()
 
         self.hook_pre_flyscan()
@@ -224,6 +225,8 @@ class ApsBusyFlyScanDevice(Device, ApsBusyFlyScanDeviceMixin):
         super().__init__('', parent=None, **kwargs)
         self._external_running = False
         self.controller = PythonPseudoController(self.signal)
+        self.update_interval = 10
+        self.update_time = time.time() + self.update_interval
 
     def launch_external_program(self):
         """
@@ -242,7 +245,7 @@ class ApsBusyFlyScanDevice(Device, ApsBusyFlyScanDeviceMixin):
         
         blocking calls OK, good for command-line use
         """
-        logger.info("terminating external program(s)")
+        logger.debug("terminating external program(s)")
         self.controller.terminate()
 
     def hook_pre_flyscan(self, *args, **kwargs):
@@ -255,8 +258,9 @@ class ApsBusyFlyScanDevice(Device, ApsBusyFlyScanDeviceMixin):
         # exactly *one* instance of external should be running
         self.controller.terminate()
         self.controller.launch()
+        self.update_time = time.time() + self.update_interval
     
-    def report(self):
+    def final_report(self):
         print("scan data")
         print("#\tx\ty")
         for i in range(int(self.xArr.number_read.value)):
@@ -273,8 +277,26 @@ class ApsBusyFlyScanDevice(Device, ApsBusyFlyScanDeviceMixin):
         """
         logger.debug("hook_post_flyscan() : no-op default")
         self.controller.terminate()
-        self.report()
+        self.final_report()
 
+    def hook_flyscan_wait_not_scanning(self):
+        """
+        Customize: called from ``flyscan_wait(False)``
+        """
+        logger.debug("hook_flyscan_wait_not_scanning() : no-op default")
+        t = time.time()
+        if t > self.update_time:
+            self.update_time = time.time() + self.update_interval
+
+    def hook_flyscan_wait_scanning(self):
+        """
+        Customize: called from ``flyscan_wait(True)``
+        """
+        logger.debug("hook_flyscan_wait_scanning() : no-op default")
+        if time.time() > self.update_time:
+            self.update_time = time.time() + self.update_interval
+            logger.info("waiting : {}".format(time.time()))
 
 ifly = ApsBusyFlyScanDevice(name="ifly")
+ifly.update_interval = 5
 # RE(ifly.flyscan_plan(), md=dict(purpose="develop busy flyer model"))
