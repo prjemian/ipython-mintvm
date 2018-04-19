@@ -9,6 +9,7 @@ Coded here to meet an imposing deadline.
 """
 
 logger = logging.getLogger(os.path.split(__file__)[-1])
+POLL_SLEEP_S = 0.05
 
 
 class ApsBusyFlyScanDevice(Device):
@@ -37,7 +38,7 @@ class ApsBusyFlyScanDevice(Device):
         https://docs.python.org/3/library/subprocess.html#subprocess.run
         """
         if self._external_running:
-            logger.info("external program already running")
+            logger.debug("external program already running")
             return
         try:
             path = os.path.dirname(__file__)
@@ -48,11 +49,11 @@ class ApsBusyFlyScanDevice(Device):
         
         def _runner():
             self._external_running = True
-            logger.info("starting external program")
+            logger.debug("starting external program")
             # subprocess.run() is a blocking call
             subprocess.run([path, "/dev/null"], stdout=subprocess.PIPE)
             self._external_running = False
-            logger.info("external program ended")
+            logger.debug("external program ended")
         
         thread = threading.Thread(target=_runner, daemon=True)
         thread.start()
@@ -64,8 +65,8 @@ class ApsBusyFlyScanDevice(Device):
         logger.info("terminating external program(s) in RunEngine")
         yield from mv(self.signal.calc, "0")
         yield from mv(self.signal.proc, 1)
-        sleep(1.0)
-        logger.info("external program terminated")
+        bps.sleep(1.0)
+        logger.debug("external program terminated")
    
     def terminate_external_program(self):
         """
@@ -75,7 +76,7 @@ class ApsBusyFlyScanDevice(Device):
         self.signal.calc.put("0")
         self.signal.proc.put(1)
         time.sleep(1.0)
-        logger.info("external program terminated")
+        logger.debug("external program terminated")
 
     def activity(self):
         """
@@ -87,7 +88,7 @@ class ApsBusyFlyScanDevice(Device):
         """
         logger.info("activity()")
         if self._completion_status is None:
-            logger.info("leaving activity() - not complete")
+            logger.debug("leaving activity() - not complete")
             return
 
         def wait_until_not_busy():
@@ -95,21 +96,21 @@ class ApsBusyFlyScanDevice(Device):
             logger.debug(msg)
             while self.busy.state.value not in (BusyStatus.done, 0):
                 # ... waiting for it to complete ...
-                time.sleep(0.05)
+                time.sleep(POLL_SLEEP_S)
 
-        logger.info("activity() - clearing Busy")
+        logger.debug("activity() - clearing Busy")
         self.busy.state.put(BusyStatus.done) # make sure it's Done first
         wait_until_not_busy()
         time.sleep(1.0)
 
-        logger.info("activity() - setting Busy")
+        logger.debug("activity() - setting Busy")
         self.busy.state.put(BusyStatus.busy)
         wait_until_not_busy()
 
         self.terminate_external_program()
         self._completion_status._finished(success=True)
-        logger.info("activity() complete")
-        logger.info("activity() status=" + str(self._completion_status))
+        logger.debug("activity() complete")
+        logger.debug("activity() status=" + str(self._completion_status))
     
     def plan(self):
         logger.info("plan()")
@@ -122,12 +123,13 @@ class ApsBusyFlyScanDevice(Device):
         thread = threading.Thread(target=self.activity, daemon=True)
         thread.start()
         
-        # TODO: how to wait until self._completion_status is done?
-        logger.info("plan() status=" + str(self._completion_status))
+        while not self._completion_status.done:
+            bps.sleep(POLL_SLEEP_S)
+        logger.debug("plan() status=" + str(self._completion_status))
 
         yield from bpp.close_run()
         logger.info("plan() complete")
-        logger.info("plan() status=" + str(self._completion_status))
+        logger.debug("plan() status=" + str(self._completion_status))
 
 
 ifly = ApsBusyFlyScanDevice(name="ifly")
