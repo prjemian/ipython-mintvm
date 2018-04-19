@@ -15,8 +15,13 @@ class ApsBusyFlyScanDeviceMixin(object):
     """
     support APS Fly Scans that are operated by a busy record
     
-    This will not generate BlueSky events to inject data into the
-    databroker.  Any data collection must be handled during
+    requires that calling class create an instance of ``BusyRecord``
+    named ``busy``, as in::
+
+        busy = Component(BusyRecord, 'prj:mybusy')
+
+    This mixin will not generate BlueSky events to inject data into
+    the databroker.  Any data collection must be handled during
     the various hook functions.
     
     .. autosummary:
@@ -34,6 +39,14 @@ class ApsBusyFlyScanDeviceMixin(object):
     def __init__(self, **kwargs):
         self._flyscan_status = None
         self.poll_sleep_interval_s = 0.05
+        
+        try:
+            if not isinstance(self.busy, BusyRecord):
+                msg = "``busy`` must be a ``BusyRecord`` instance"
+                raise KeyError(msg)
+        except AttributeError:
+            msg = "must define ``busy`` record instance"
+            raise KeyError(msg)
     
     def hook_flyscan(self):
         """
@@ -258,6 +271,7 @@ class ApsBusyFlyScanDevice(Device, ApsBusyFlyScanDeviceMixin):
         # exactly *one* instance of external should be running
         self.controller.terminate()
         self.controller.launch()
+        self.t0 = time.time()
         self.update_time = time.time() + self.update_interval
     
     def final_report(self):
@@ -277,7 +291,9 @@ class ApsBusyFlyScanDevice(Device, ApsBusyFlyScanDeviceMixin):
         """
         logger.debug("hook_post_flyscan() : no-op default")
         self.controller.terminate()
+        logger.debug("done in {} s".format(time.time() - self.t0))
         self.final_report()
+        del self.t0
 
     def hook_flyscan_wait_not_scanning(self):
         """
@@ -295,7 +311,7 @@ class ApsBusyFlyScanDevice(Device, ApsBusyFlyScanDeviceMixin):
         logger.debug("hook_flyscan_wait_scanning() : no-op default")
         if time.time() > self.update_time:
             self.update_time = time.time() + self.update_interval
-            logger.info("waiting : {}".format(time.time()))
+            logger.debug("waiting {} s".format(time.time() - self.t0))
 
 ifly = ApsBusyFlyScanDevice(name="ifly")
 ifly.update_interval = 5
