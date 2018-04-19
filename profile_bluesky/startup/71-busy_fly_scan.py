@@ -40,13 +40,14 @@ class ApsBusyFlyScanDeviceMixin(object):
         self._flyscan_status = None
         self.poll_sleep_interval_s = 0.05
         
-        try:
-            if not isinstance(self.busy, BusyRecord):
-                msg = "``busy`` must be a ``BusyRecord`` instance"
-                raise KeyError(msg)
-        except AttributeError:
-            msg = "must define ``busy`` record instance"
-            raise KeyError(msg)
+        #FIXME:  
+        #try:
+        #    if not isinstance(self.busy, BusyRecord):
+        #        msg = "``busy`` must be a ``BusyRecord`` instance"
+        #        raise KeyError(msg)
+        #except AttributeError:
+        #    msg = "must define ``busy`` record instance"
+        #    raise KeyError(msg)
     
     def hook_flyscan(self):
         """
@@ -313,6 +314,6 @@ class ApsBusyFlyScanDevice(Device, ApsBusyFlyScanDeviceMixin):
             self.update_time = time.time() + self.update_interval
             logger.debug("waiting {} s".format(time.time() - self.t0))
 
-ifly = ApsBusyFlyScanDevice(name="ifly")
-ifly.update_interval = 5
+#ifly = ApsBusyFlyScanDevice(name="ifly")
+#ifly.update_interval = 5
 # RE(ifly.flyscan_plan(), md=dict(purpose="develop busy flyer model"))
