@@ -90,7 +90,7 @@ class BusyFlyer(Device):
         logger.debug("terminating external program(s) in RunEngine")
         yield from mv(self.signal.calc, "0")
         yield from mv(self.signal.proc, 1)
-        sleep(1.0)
+        bps.sleep(1.0)
         logger.debug("external program terminated")
    
     def terminate_external_program(self):
