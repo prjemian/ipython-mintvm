@@ -182,7 +182,29 @@ class BusyFlyer(Device):
         collectors = "xArr yArr".split()
         desc = self._describe_attr_list(collectors)
         return {self.name: desc}
-    
+#        desc = dict(
+#            ifly_xArr={},
+#            ifly_yArr={},
+#        )
+#        return {'ifly': desc}
+#        desc = dict(
+#            ifly_xArr={'dtype': 'array',
+#                'lower_ctrl_limit': 0.0,
+#                'precision': 0,
+#                'shape': [],
+#                'source': 'PV:prj:x_array',
+#                'units': '',
+#                'upper_ctrl_limit': 0.0},
+#            ifly_yArr={'dtype': 'array',
+#                'lower_ctrl_limit': 0.0,
+#                'precision': 0,
+#                'shape': [],
+#                'source': 'PV:prj:y_array',
+#                'units': '',
+#                'upper_ctrl_limit': 0.0},
+#        )
+#        return {'ifly': desc}
+                       
     def collect(self):
         """
         Retrieve data from the Flyer as *proto-events*
@@ -202,8 +224,8 @@ class BusyFlyer(Device):
             t = time.time()     # fake these for now
             logger.info("collect() time={}".format(t))
             for arr in (self.xArr, self.yArr):
-                data_dict[arr.wave.name] = arr.wave.value[i]
-                ts_dict[arr.wave.name] = t
+                data_dict[arr.name] = arr.wave.value[i]
+                ts_dict[arr.name] = t
             logger.info("collect() data={}".format(data_dict))
             # yield dict(data=data_dict, timestamps=ts_dict, time=t, seq_num=i+1)
             yield {'data':data_dict, 'timestamps':ts_dict, 'time':t, 'seq_num':i+1}
