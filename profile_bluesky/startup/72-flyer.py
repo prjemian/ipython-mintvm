@@ -18,6 +18,7 @@ class MyFlyer(Device):
     def __init__(self, *args, **kwargs):
         super().__init__('', parent=None, **kwargs)
         self._completion_status = None
+        self.t0 = 0
 
     def my_activity(self):
         """
@@ -44,6 +45,7 @@ class MyFlyer(Device):
         """
         logger.info("kickoff()")
         self._completion_status = DeviceStatus(self)
+        self.t0 = time.time()
         
         thread = threading.Thread(target=self.my_activity, daemon=True)
         thread.start()
@@ -68,7 +70,7 @@ class MyFlyer(Device):
         """
         logger.info("describe_collect()")
         d = dict(
-            source = "fictional",
+            source = "elapsed time, s",
             dtype = "number",
             shape = []
         )
@@ -84,9 +86,10 @@ class MyFlyer(Device):
         """
         logger.info("collect()")
         t = time.time()
+        x = t - self.t0 # data is elapsed time since kickoff()
         d = dict(
             time=t,
-            data=dict(x=1.2345),
+            data=dict(x=x),
             timestamps=dict(x=t)
         )
         yield d
