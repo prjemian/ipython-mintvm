@@ -11,6 +11,7 @@ record    PV used here       URL
 busy      ``prj:mybusy``     https://github.com/epics-modules/busy
 motor     ``prj:m1``         https://github.com/epics-modules/motor
 swait     ``prj:userCalc1``  https://github.com/epics-modules/calc
+waveform  ``prj:t_array``    custom EPICS database added
 waveform  ``prj:x_array``    custom EPICS database added
 waveform  ``prj:y_array``    custom EPICS database added
 ========  =================  ==================
@@ -30,6 +31,11 @@ Description:
 
 Custom EPICS database (``P="prj:"``)::
 
+    record(waveform, "$(P)t_array")
+    {
+        field(FTVL, "DOUBLE")
+        field(NELM, "256")
+    }
     record(waveform, "$(P)x_array")
     {
         field(FTVL, "DOUBLE")
@@ -77,6 +83,7 @@ import epics        # http://cars9.uchicago.edu/software/python/pyepics3
 import logging
 import numpy
 import threading
+import time
 
 logging.basicConfig(level=logging.INFO) 
 
@@ -84,6 +91,7 @@ PREFIX = "prj:"     # prj: is from a synApps xxx IOC
 BUSY_PV = PREFIX + "mybusy"     # busy record
 MOTOR_PV = PREFIX + "m1"        # motor record
 CALC_PV = PREFIX + "userCalc1"  # swait record
+T_PV = PREFIX + "t_array"       # waveform record
 X_PV = PREFIX + "x_array"       # waveform record
 Y_PV = PREFIX + "y_array"       # waveform record
 MAX_WAVEFORM_LENGTH = 256
@@ -91,7 +99,7 @@ MAX_WAVEFORM_LENGTH = 256
 
 class Demonstrator(object):
     
-    def __init__(self, busy_pv_name, motor_pv_name, calc_pv_name, x_pv_name, y_pv_name):
+    def __init__(self, busy_pv_name, motor_pv_name, calc_pv_name, t_pv_name, x_pv_name, y_pv_name):
         self.busy = epics.PV(busy_pv_name)
         
         # motor: the independent variable
@@ -104,6 +112,7 @@ class Demonstrator(object):
         self.calc_proc.put(1)   # get a new value
         
         # waveforms: the results
+        self.t = epics.PV(t_pv_name)
         self.x = epics.PV(x_pv_name)
         self.y = epics.PV(y_pv_name)
 
@@ -129,9 +138,6 @@ class Demonstrator(object):
             logging.info("starting the process in a thread")
             thread = threading.Thread(target=self.process)
             thread.start()
-        # else:
-        #     for k, v in sorted(kwargs.items()):
-        #         print(k, v)
 
     def process(self):
         if self.processing:
@@ -139,7 +145,7 @@ class Demonstrator(object):
         logging.info("process() start")
         self.processing = True
         self.motor.move(self.origin, wait=True)
-        x, y = [], []
+        t, x, y = [], [], []
         for step_number in range(self.num_steps):
             if self.busy.value != 1:
                 logging.info("process() interrupted")
@@ -147,9 +153,11 @@ class Demonstrator(object):
             target = self.origin + step_number * self.step_size
             self.motor.move(target, wait=True)
             self.calc_proc.put(1)   # get a new value
+            t.append(time.time())
             x.append(self.motor.readback)
             y.append(self.calc.value)
-            print(x[-1], y[-1])
+            print(t[-1], x[-1], y[-1])
+            self.t.put(numpy.array(t))
             self.x.put(numpy.array(x))
             self.y.put(numpy.array(y))
         self.busy.put(0)
@@ -158,7 +166,7 @@ class Demonstrator(object):
 
 
 def main():
-    process = Demonstrator(BUSY_PV, MOTOR_PV, CALC_PV, X_PV, Y_PV)
+    process = Demonstrator(BUSY_PV, MOTOR_PV, CALC_PV, T_PV, X_PV, Y_PV)
     process.monitor()
     while process.calc.value != 0:
         pass
