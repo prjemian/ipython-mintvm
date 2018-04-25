@@ -12,6 +12,9 @@ class MyFlyer(Device):
     build a Flyer that we understand
     """
 
+    xArr = Component(MyWaveform, 'prj:x_array')
+    # yArr = Component(MyWaveform, 'prj:y_array')
+
     def __init__(self, *args, **kwargs):
         super().__init__('', parent=None, **kwargs)
         self._completion_status = None
@@ -26,7 +29,7 @@ class MyFlyer(Device):
         """
         logger.info("activity()")
         if self._completion_status is None:
-            logger.debug("leaving activity() - not complete")
+            logger.info("leaving activity() - not complete")
             return
         
         # TODO: do the activity here
@@ -40,14 +43,12 @@ class MyFlyer(Device):
         Start this Flyer
         """
         logger.info("kickoff()")
-        self._completion_status = DeviceStatus(self.busy.state)
+        self._completion_status = DeviceStatus(self)
         
         thread = threading.Thread(target=self.my_activity, daemon=True)
         thread.start()
 
-        status = DeviceStatus(self.busy.state)
-        status._finished(success=True)
-        return status
+        return self._completion_status
 
     def complete(self):
         """
@@ -74,3 +75,7 @@ class MyFlyer(Device):
         Start this Flyer
         """
         logger.info("collect()")
+
+
+ifly = MyFlyer(name="ifly")
+# RE(ifly.flyscan_plan(), md=dict(purpose="develop Flyer for APS fly scans"))
