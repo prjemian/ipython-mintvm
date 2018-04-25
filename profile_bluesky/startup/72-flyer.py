@@ -67,7 +67,15 @@ class MyFlyer(Device):
         Describe details for ``collect()`` method
         """
         logger.info("describe_collect()")
-        return {'ifly': {}
+        d = dict(
+            source = "fictional",
+            dtype = "number",
+            shape = []
+        )
+        return {
+            'ifly': {
+                "x": d
+            }
         }
 
     def collect(self):
@@ -75,7 +83,14 @@ class MyFlyer(Device):
         Start this Flyer
         """
         logger.info("collect()")
+        t = time.time()
+        d = dict(
+            time=t,
+            data=dict(x=1.2345),
+            timestamps=dict(x=t)
+        )
+        yield d
 
 
 ifly = MyFlyer(name="ifly")
-# RE(ifly.flyscan_plan(), md=dict(purpose="develop Flyer for APS fly scans"))
+RE(bp.fly([ifly]), md=dict(purpose="develop Flyer for APS fly scans"))
