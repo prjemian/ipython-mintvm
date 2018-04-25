@@ -21,6 +21,7 @@ class MyFlyer(Device):
         super().__init__('', parent=None, **kwargs)
         self._completion_status = None
         self.poll_sleep_interval_s = 0.05
+        self.t0 = 0
 
     def wait_busy(self, target = None):
         """
@@ -50,6 +51,7 @@ class MyFlyer(Device):
         self.wait_busy()
 
         # wait for completion
+        self.t0 = time.time()
         self.busy.state.put(BusyStatus.busy)
         self.wait_busy()
         
@@ -86,7 +88,7 @@ class MyFlyer(Device):
         """
         logger.info("describe_collect()")
         return {
-            'ifly': dict(
+            self.name: dict(
                 ifly_xArr = dict(
                     source = self.xArr.wave.pvname,
                     dtype = "number",
@@ -94,6 +96,11 @@ class MyFlyer(Device):
                 ),
                 ifly_yArr = dict(
                     source = self.yArr.wave.pvname,
+                    dtype = "number",
+                    shape = (1,)
+                ),
+                ifly_tArr = dict(
+                    source = self.tArr.wave.pvname,
                     dtype = "number",
                     shape = (1,)
                 )
@@ -112,12 +119,14 @@ class MyFlyer(Device):
             d = dict(
                 time=time.time(),
                 data=dict(
-                    ifly_xArr=x,
-                    ifly_yArr=y,
+                    ifly_tArr = time.time() - self.t0,
+                    ifly_xArr = x,
+                    ifly_yArr = y,
                 ),
                 timestamps=dict(
-                    ifly_xArr=t,
-                    ifly_yArr=t,
+                    ifly_tArr = t,
+                    ifly_xArr = t,
+                    ifly_yArr = t,
                 )
             )
             yield d
@@ -127,4 +136,5 @@ ifly = MyFlyer(name="ifly")
 """
 RE(bp.fly([ifly]), md=dict(purpose="develop Flyer for APS fly scans"))
 list(db[-1].documents())
+db[-1].table("ifly")
 """
