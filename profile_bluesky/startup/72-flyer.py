@@ -30,7 +30,7 @@ class MyFlyer(Device):
         logger.debug("wait_busy()")
         target = target or BusyStatus.done
 
-        while self.busy.state.value not in (BusyStatus.done, 0):
+        while self.busy.state.value not in (target):
             time.sleep(self.poll_sleep_interval_s)  # wait to complete ...
  
     def my_activity(self):

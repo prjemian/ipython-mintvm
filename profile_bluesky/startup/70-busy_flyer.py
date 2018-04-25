@@ -19,7 +19,7 @@ class BusyStatus(str, Enum):
 
 class BusyRecord(Device):
     """a busy record sets the fly scan into action"""
-    state = Component(EpicsSignal, "")
+    state = Component(EpicsSignal, "", string=True)
     output_link = Component(EpicsSignal, ".OUT")
     forward_link = Component(EpicsSignal, ".FLNK")
 
