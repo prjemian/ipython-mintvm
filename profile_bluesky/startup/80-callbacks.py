@@ -6,8 +6,8 @@ import APS_BlueSky_tools.callbacks
 import APS_BlueSky_tools.filewriters
 
 
-doc_collector = APS_BlueSky_tools.callbacks.DocumentCollectorCallback()
-callback_db['doc_collector'] = RE.subscribe(doc_collector.receiver)
+#doc_collector = APS_BlueSky_tools.callbacks.DocumentCollectorCallback()
+#callback_db['doc_collector'] = RE.subscribe(doc_collector.receiver)
 
 #specwriter = APS_BlueSky_tools.filewriters.SpecWriterCallback()
 #specwriter.newfile(os.path.join("/tmp", specwriter.spec_filename))
