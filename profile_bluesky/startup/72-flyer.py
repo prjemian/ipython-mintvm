@@ -12,13 +12,13 @@ class MyFlyer(Device):
     build a Flyer that we understand
     """
 
+    tArr = Component(MyWaveform, 'prj:t_array')
     xArr = Component(MyWaveform, 'prj:x_array')
-    # yArr = Component(MyWaveform, 'prj:y_array')
+    yArr = Component(MyWaveform, 'prj:y_array')
 
     def __init__(self, *args, **kwargs):
         super().__init__('', parent=None, **kwargs)
         self._completion_status = None
-        self.t0 = 0
 
     def my_activity(self):
         """
@@ -45,7 +45,6 @@ class MyFlyer(Device):
         """
         logger.info("kickoff()")
         self._completion_status = DeviceStatus(self)
-        self.t0 = time.time()
         
         thread = threading.Thread(target=self.my_activity, daemon=True)
         thread.start()
@@ -69,15 +68,19 @@ class MyFlyer(Device):
         Describe details for ``collect()`` method
         """
         logger.info("describe_collect()")
-        d = dict(
-            source = "elapsed time, s",
-            dtype = "number",
-            shape = (1,)
-        )
         return {
-            'ifly': {
-                "x": d
-            }
+            'ifly': dict(
+                ifly_xArr = dict(
+                    source = self.xArr.wave.pvname,
+                    dtype = "number",
+                    shape = (1,)
+                ),
+                ifly_yArr = dict(
+                    source = self.yArr.wave.pvname,
+                    dtype = "number",
+                    shape = (1,)
+                )
+            )
         }
 
     def collect(self):
@@ -85,13 +88,20 @@ class MyFlyer(Device):
         Start this Flyer
         """
         logger.info("collect()")
-        for _ in range(5):
-            t = time.time()
-            x = t - self.t0 # data is elapsed time since kickoff()
+        for i in range(len(ifly.tArr.wave.value)):
+            t = ifly.tArr.wave.value[i]
+            x = ifly.xArr.wave.value[i]
+            y = ifly.yArr.wave.value[i]
             d = dict(
-                time=t,
-                data=dict(x=x),
-                timestamps=dict(x=t)
+                time=time.time(),
+                data=dict(
+                    ifly_xArr=x,
+                    ifly_yArr=y,
+                ),
+                timestamps=dict(
+                    ifly_xArr=t,
+                    ifly_yArr=t,
+                )
             )
             yield d
 
