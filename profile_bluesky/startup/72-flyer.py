@@ -12,6 +12,7 @@ class MyFlyer(Device):
     build a Flyer that we understand
     """
 
+    busy = Component(BusyRecord, 'prj:mybusy')
     tArr = Component(MyWaveform, 'prj:t_array')
     xArr = Component(MyWaveform, 'prj:x_array')
     yArr = Component(MyWaveform, 'prj:y_array')
@@ -19,7 +20,18 @@ class MyFlyer(Device):
     def __init__(self, *args, **kwargs):
         super().__init__('', parent=None, **kwargs)
         self._completion_status = None
+        self.poll_sleep_interval_s = 0.05
 
+    def wait_busy(self, target = None):
+        """
+        wait for the busy record to return to the target value
+        """
+        logger.debug("wait_busy()")
+        target = target or BusyStatus.done
+
+        while self.busy.state.value not in (BusyStatus.done, 0):
+            time.sleep(self.poll_sleep_interval_s)  # wait to complete ...
+ 
     def my_activity(self):
         """
         start the "fly scan" here, could wait for completion
@@ -33,8 +45,13 @@ class MyFlyer(Device):
             logger.info("leaving activity() - not complete")
             return
         
-        # TODO: do the activity here
-        # TODO: wait for completion
+        # do the activity here
+        self.busy.state.put(BusyStatus.done) # make sure it's Done first
+        self.wait_busy()
+
+        # wait for completion
+        self.busy.state.put(BusyStatus.busy)
+        self.wait_busy()
         
         self._completion_status._finished(success=True)
         logger.info("activity() complete. status = " + str(self._completion_status))
@@ -107,5 +124,7 @@ class MyFlyer(Device):
 
 
 ifly = MyFlyer(name="ifly")
+"""
 RE(bp.fly([ifly]), md=dict(purpose="develop Flyer for APS fly scans"))
 list(db[-1].documents())
+"""
