@@ -179,9 +179,19 @@ class BusyFlyer(Device):
         Describe details for ``collect()`` method
         """
         logger.info("describe_collect()")
-        collectors = "xArr yArr".split()
-        desc = self._describe_attr_list(collectors)
-        return {self.name: desc}
+        return {'ifly': {
+            'ifly_xArr': {'source' : 'ifly-test', 
+                'dtype' : 'array',
+                'shape' : (1,)},
+            'ifly_yArr' : {'source' : 'ifly-test',
+                'dtype' : 'array',
+                'shape' : (1,)}
+            }
+        }
+
+#        collectors = "xArr yArr".split()
+#        desc = self._describe_attr_list(collectors)
+#        return {self.name: desc}
 #        desc = dict(
 #            ifly_xArr={},
 #            ifly_yArr={},
