@@ -72,7 +72,7 @@ class MyFlyer(Device):
         d = dict(
             source = "elapsed time, s",
             dtype = "number",
-            shape = []
+            shape = (1,)
         )
         return {
             'ifly': {
@@ -85,15 +85,17 @@ class MyFlyer(Device):
         Start this Flyer
         """
         logger.info("collect()")
-        t = time.time()
-        x = t - self.t0 # data is elapsed time since kickoff()
-        d = dict(
-            time=t,
-            data=dict(x=x),
-            timestamps=dict(x=t)
-        )
-        yield d
+        for _ in range(5):
+            t = time.time()
+            x = t - self.t0 # data is elapsed time since kickoff()
+            d = dict(
+                time=t,
+                data=dict(x=x),
+                timestamps=dict(x=t)
+            )
+            yield d
 
 
 ifly = MyFlyer(name="ifly")
 RE(bp.fly([ifly]), md=dict(purpose="develop Flyer for APS fly scans"))
+list(db[-1].documents())
