@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>Form</class>
+ <widget class="QWidget" name="Form">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>473</width>
+    <height>491</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Form</string>
+  </property>
+  <widget class="caInclude" name="cainclude">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>10</y>
+     <width>221</width>
+     <height>121</height>
+    </rect>
+   </property>
+   <property name="macro">
+    <string>P=prj:,R=mybusy</string>
+   </property>
+   <property name="filename" stdset="0">
+    <string notr="true">xxBusyRecord.ui</string>
+   </property>
+  </widget>
+  <widget class="caInclude" name="cainclude_2">
+   <property name="geometry">
+    <rect>
+     <x>250</x>
+     <y>10</y>
+     <width>211</width>
+     <height>121</height>
+    </rect>
+   </property>
+   <property name="macro">
+    <string>P=prj:,M=m1</string>
+   </property>
+   <property name="filename" stdset="0">
+    <string notr="true">motorx_tiny.ui</string>
+   </property>
+  </widget>
+  <widget class="caInclude" name="cainclude_3">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>140</y>
+     <width>451</width>
+     <height>341</height>
+    </rect>
+   </property>
+   <property name="macro">
+    <string>P=prj:,N=1,C=userCalc1</string>
+   </property>
+   <property name="filename" stdset="0">
+    <string notr="true">userCalc.ui</string>
+   </property>
+  </widget>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>caInclude</class>
+   <extends>QWidget</extends>
+   <header>caInclude</header>
+  </customwidget>
+ </customwidgets>
+ <resources/>
+ <connections/>
+</ui>
