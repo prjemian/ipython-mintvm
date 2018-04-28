@@ -12,6 +12,12 @@ from enum import Enum
 logger = logging.getLogger(os.path.split(__file__)[-1])
 
 
+BUSY_PV = 'prj:mybusy'
+TIME_WAVE_PV = 'prj:t_array'
+X_WAVE_PV = 'prj:x_array'
+Y_WAVE_PV = 'prj:y_array'
+
+
 class BusyStatus(str, Enum):
     busy = "Busy"
     done = "Done"
@@ -38,220 +44,89 @@ class MyWaveform(Device):
     number_read = Component(EpicsSignalRO, ".NORD")
 
 
-class BusyFlyer(Device):
+class BusyFlyerDevice(Device):
     """
-    use the busyExample.py code to make a pseudo-scan
-    
-    http://nsls-ii.github.io/ophyd/architecture.html#fly-able-interface
+    support APS Fly Scans that are operated by a busy record
     """
-    busy = Component(BusyRecord, 'prj:mybusy')
-    motor = Component(EpicsMotor, 'prj:m1')
-    signal = Component(MyCalc, 'prj:userCalc1')
-    xArr = Component(MyWaveform, 'prj:x_array')
-    yArr = Component(MyWaveform, 'prj:y_array')
+
+    busy = Component(EpicsSignal, BUSY_PV, string=True)
+    time = Component(MyWaveform, TIME_WAVE_PV)
+    axis = Component(MyWaveform, X_WAVE_PV)
+    signal = Component(MyWaveform, Y_WAVE_PV)
     
-    def __init__(self, stream_name=None, **kwargs):
+    def __init__(self, *args, **kwargs):
         super().__init__('', parent=None, **kwargs)
-        self._completion_status = None
-        self._external_running = False
-        self.stream_name = stream_name
-
-    def launch_external_program(self):
-        """
-        launch external program in a thread
-        
-        https://docs.python.org/3/library/subprocess.html#subprocess.run
-        """
-        if self._external_running:
-            logger.info("external program already running")
-            return
-        try:
-            path = os.path.dirname(__file__)
-        except NameError as _exc:
-            # interactive use
-            path = os.path.abspath(".")
-        path = os.path.join(path, "local_code", "busyExample.py")
-        
-        def _runner():
-            self._external_running = True
-            logger.info("starting external program")
-            # subprocess.run() is a blocking call
-            subprocess.run([path, "/dev/null"], stdout=subprocess.PIPE)
-            self._external_running = False
-            logger.info("external program ended")
-        
-        thread = threading.Thread(target=_runner, daemon=True)
-        thread.start()
-   
-    def terminate_external_program_in_RE(self):
-        """
-        tell external program to quit while in RunEngine
-        """
-        logger.debug("terminating external program(s) in RunEngine")
-        yield from mv(self.signal.calc, "0")
-        yield from mv(self.signal.proc, 1)
-        bps.sleep(1.0)
-        logger.debug("external program terminated")
-   
-    def terminate_external_program(self):
-        """
-        tell external program to quit
-        """
-        logger.debug("terminating external program(s)")
-        self.signal.calc.put("0")
-        self.signal.proc.put(1)
-        time.sleep(1.0)
-        logger.debug("external program terminated")
-
-    def activity(self):
-        """
-        start the busy record and poll for completion
-        
-        It's OK to use blocking calls here 
-        since this is called in a separate thread
-        from the BlueSky RunEngine.
-        """
-        logger.info("activity()")
-        if self._completion_status is None:
-            logger.debug("leaving activity() - not complete")
-            return
-
-        def wait_until_done():
-            msg = "activity()  busy = " + str(self.busy.state.value)
-            logger.debug(msg)
-            while self.busy.state.value not in (BusyStatus.done, 0):
-                # ... waiting for it to complete ...
-                time.sleep(0.05)
-
-        logger.debug("activity() - clearing Busy")
-        self.busy.state.put(BusyStatus.done) # make sure it's Done first
-        wait_until_done()
-        time.sleep(1.0)
-
-        logger.debug("activity() - setting Busy")
-        self.busy.state.put(BusyStatus.busy)
-        wait_until_done()
-
-        self.terminate_external_program()
-        self._completion_status._finished(success=True)
-        logger.debug("activity() complete")
+        self.complete_status = None
+        self.t0 = time.time()
+        self.waves = (self.time, self.axis, self.signal)
 
     def kickoff(self):
         """
         Start this Flyer
         """
         logger.info("kickoff()")
-        self.terminate_external_program_in_RE()   # belt+suspenders approach
-        self.launch_external_program()
-        self._completion_status = DeviceStatus(self.busy.state)
+        self.complete_status = DeviceStatus(self.busy)
         
-        thread = threading.Thread(target=self.activity, daemon=True)
-        thread.start()
+        def cb(*args, **kwargs):
+            if self.busy.value in (BusyStatus.done):
+                self.complete_status._finished(success=True)
+        
+        self.t0 = time.time()
+        self.busy.put(BusyStatus.busy)
+        self.busy.subscribe(cb)
 
-        status = DeviceStatus(self.busy.state)
-        status._finished(success=True)
-        return status
-    
+        kickoff_status = DeviceStatus(self)
+        kickoff_status._finished(success=True)
+        return kickoff_status
+
     def complete(self):
         """
         Wait for flying to be complete
         """
-        logger.info("complete()")
-        if self._completion_status is None:
-            raise RuntimeError("No collection in progress")
-
-        st = DeviceStatus(self)
-        st._finished(success=True)
-        return st
-    
-    def pause(self):
-        '''Pause acquisition'''
-        logger.info("pause()")
-        super().pause()
-
-    def resume(self):
-        '''Resume acquisition'''
-        logger.info("resume()")
-        super().resume()
+        logger.info("complete(): " + str(self.complete_status))
+        return self.complete_status
 
     def describe_collect(self):
         """
         Describe details for ``collect()`` method
         """
         logger.info("describe_collect()")
-        return {'ifly': {
-            'ifly_xArr': {'source' : 'ifly-test', 
-                'dtype' : 'array',
-                'shape' : (1,)},
-            'ifly_yArr' : {'source' : 'ifly-test',
-                'dtype' : 'array',
-                'shape' : (1,)}
-            }
-        }
+        schema = {}
+        for item in self.waves:
+            structure = dict(
+                source = item.wave.pvname,
+                dtype = "number",
+                shape = (1,)
+            )
+            schema[item.name] = structure
+        return {self.name: schema}
 
-#        collectors = "xArr yArr".split()
-#        desc = self._describe_attr_list(collectors)
-#        return {self.name: desc}
-#        desc = dict(
-#            ifly_xArr={},
-#            ifly_yArr={},
-#        )
-#        return {'ifly': desc}
-#        desc = dict(
-#            ifly_xArr={'dtype': 'array',
-#                'lower_ctrl_limit': 0.0,
-#                'precision': 0,
-#                'shape': [],
-#                'source': 'PV:prj:x_array',
-#                'units': '',
-#                'upper_ctrl_limit': 0.0},
-#            ifly_yArr={'dtype': 'array',
-#                'lower_ctrl_limit': 0.0,
-#                'precision': 0,
-#                'shape': [],
-#                'source': 'PV:prj:y_array',
-#                'units': '',
-#                'upper_ctrl_limit': 0.0},
-#        )
-#        return {'ifly': desc}
-                       
     def collect(self):
         """
-        Retrieve data from the Flyer as *proto-events*
-
-        Yields::
-        
-            event_data : dict
-                Must have the keys {'time', 'timestamps', 'data'}.
-
+        Start this Flyer
         """
-        logger.info("collect()")
-        logger.info("collect() stream_name={}".format(self.stream_name))
-        for i in range(len(self.xArr.wave.value)):
-            logger.info("collect() #{}".format(i+1))
-            data_dict = {}
-            ts_dict = {}
-            t = time.time()     # fake these for now
-            logger.info("collect() time={}".format(t))
-            for arr in (self.xArr, self.yArr):
-                data_dict[arr.name] = arr.wave.value[i]
-                ts_dict[arr.name] = t
-            logger.info("collect() data={}".format(data_dict))
-            # yield dict(data=data_dict, timestamps=ts_dict, time=t, seq_num=i+1)
-            yield {'data':data_dict, 'timestamps':ts_dict, 'time':t, 'seq_num':i+1}
-
-            logger.info("collect() after yield")
-
-    def stop(self, *, success=False):
-        """
-        halt activity (motion) before it is complete
-        """
-        logger.info("stop()")
-        yield from mv(busy.state, 0)
-        yield from mv(motor.stop, 0)
+        logger.info("collect(): " + str(self.complete_status))
+        self.complete_status = None
+        for i in range(int(self.time.number_read.value)):
+            data = {}
+            timestamps = {}
+            t = time.time()
+            for item in self.waves:
+                data[item.name] = item.wave.value[i]
+                timestamps[item.name] = t
+            
+            # demo: offset time instead (removes large offset)
+            data[self.time.name] -= self.t0
+            
+            d = dict(
+                time=time.time(),
+                data=data,
+                timestamps=timestamps
+            )
+            yield d
 
 
-ifly = BusyFlyer(name="ifly")
+ifly = BusyFlyerDevice(name="ifly")
 
 
 # RE(bp.fly([ifly], md=dict(purpose="develop busy flyer model")))
