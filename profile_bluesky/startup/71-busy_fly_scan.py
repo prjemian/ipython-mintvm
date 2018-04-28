@@ -160,70 +160,6 @@ class ApsBusyFlyScanDeviceMixin(object):
         logger.debug("plan() complete")
 
 
-class PythonPseudoController(object):
-    """
-    use the busyExample.py code to make a pseudo fly scan
-    """
-    
-    def __init__(self, swait, **kwargs):
-        self._external_running = False
-        self.swait = swait
-    
-    def _get_file_name(self):
-        try:
-            path = os.path.dirname(__file__)
-        except NameError as _exc:
-            # interactive use
-            path = os.path.abspath(".")
-        return os.path.join(path, "local_code", "busyExample.py")
-    
-    def _start(self, python_file_name):
-        """
-        run the external program as a subprocess 
-        
-        note: the caller launches this in a separate thread
-        """
-        self._external_running = True
-        logger.debug("starting external program")
-        # subprocess.run() is a blocking call
-        subprocess.run([python_file_name, "/dev/null"], stdout=subprocess.PIPE)
-        self._external_running = False
-        logger.debug("external program ended")
-    
-    def _stop(self):
-        """
-        configure swait record to signal external program to quit
-        """
-        self.swait.calc.put("0")
-        self.swait.proc.put(1)
-        time.sleep(1.0)
-
-    def launch(self):
-        """
-        start external program (in a thread)
-        """
-        logger.debug("PythonPseudoController.launch()")
-        if self._external_running:
-            logger.debug("PythonPseudoController.launch() already running")
-            return
-        fname = self._get_file_name()
-        
-        thread = threading.Thread(target=self._start, args=[fname], daemon=True)
-        thread.start()
-    
-    def terminate(self):
-        """
-        signal external program to quit
-        """
-        logger.debug("PythonPseudoController.terminate()")
-        if not self._external_running:
-            logger.debug("PythonPseudoController.launch() not known to be running")
-            return
-
-        thread = threading.Thread(target=self._stop, daemon=True)
-        thread.start()
-        logger.debug("external program signalled to end")
-
 
 class ApsBusyFlyScanDevice(Device, ApsBusyFlyScanDeviceMixin):
     """
@@ -238,7 +174,6 @@ class ApsBusyFlyScanDevice(Device, ApsBusyFlyScanDeviceMixin):
     def __init__(self, **kwargs):
         super().__init__('', parent=None, **kwargs)
         self._external_running = False
-        self.controller = PythonPseudoController(self.signal)
         self.update_interval = 10
         self.update_time = time.time() + self.update_interval
 
@@ -251,7 +186,7 @@ class ApsBusyFlyScanDevice(Device, ApsBusyFlyScanDeviceMixin):
         if self._external_running:
             logger.debug("external program already running")
             return
-        self.controller.launch()
+        #self.controller.launch()
    
     def terminate_external_program(self):
         """
@@ -260,7 +195,7 @@ class ApsBusyFlyScanDevice(Device, ApsBusyFlyScanDeviceMixin):
         blocking calls OK, good for command-line use
         """
         logger.debug("terminating external program(s)")
-        self.controller.terminate()
+        #self.controller.terminate()
 
     def hook_pre_flyscan(self, *args, **kwargs):
         """
@@ -270,8 +205,8 @@ class ApsBusyFlyScanDevice(Device, ApsBusyFlyScanDeviceMixin):
         
         # belt+suspenders approach
         # exactly *one* instance of external should be running
-        self.controller.terminate()
-        self.controller.launch()
+        #self.controller.terminate()
+        #self.controller.launch()
         self.t0 = time.time()
         self.update_time = time.time() + self.update_interval
     
@@ -291,7 +226,7 @@ class ApsBusyFlyScanDevice(Device, ApsBusyFlyScanDeviceMixin):
         run after the fly scan
         """
         logger.debug("hook_post_flyscan() : no-op default")
-        self.controller.terminate()
+        #self.controller.terminate()
         logger.debug("done in {} s".format(time.time() - self.t0))
         self.final_report()
         del self.t0
