@@ -1,16 +1,12 @@
 print(__file__)
 
-"""Flyer example with the busy record"""
+"""ophyd Flyer example with the busy record fly scan"""
 
-from collections import deque, OrderedDict
 import os
-import subprocess
-from ophyd.utils import OrderedDefaultDict
 from enum import Enum
 
 
 logger = logging.getLogger(os.path.split(__file__)[-1])
-
 
 BUSY_PV = 'prj:mybusy'
 TIME_WAVE_PV = 'prj:t_array'
@@ -21,13 +17,6 @@ Y_WAVE_PV = 'prj:y_array'
 class BusyStatus(str, Enum):
     busy = "Busy"
     done = "Done"
-
-
-class BusyRecord(Device):
-    """a busy record sets the fly scan into action"""
-    state = Component(EpicsSignal, "", string=True)
-    output_link = Component(EpicsSignal, ".OUT")
-    forward_link = Component(EpicsSignal, ".FLNK")
 
 
 class MyCalc(Device):
@@ -46,7 +35,7 @@ class MyWaveform(Device):
 
 class BusyFlyerDevice(Device):
     """
-    support APS Fly Scans that are operated by a busy record
+    support a fly scan that is triggered by a busy record
     """
 
     busy = Component(EpicsSignal, BUSY_PV, string=True)
@@ -118,16 +107,11 @@ class BusyFlyerDevice(Device):
             # demo: offset time instead (removes large offset)
             data[self.time.name] -= self.t0
             
-            d = dict(
-                time=time.time(),
-                data=data,
-                timestamps=timestamps
-            )
-            yield d
+            yield dict(time=time.time(), data=data, timestamps=timestamps)
 
 
-ifly = BusyFlyerDevice(name="ifly")
+bfly = BusyFlyerDevice(name="bfly")
 
 
-# RE(bp.fly([ifly], md=dict(purpose="develop busy flyer model")))
+# RE(bp.fly([bfly], md=dict(purpose="develop busy flyer model")))
 # https://github.com/NSLS-II/bluesky/blob/master/bluesky/plans.py#L1415
