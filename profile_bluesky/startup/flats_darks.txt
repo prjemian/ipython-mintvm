@@ -1,0 +1,44 @@
+Hi Pete,
+
+ If you look at the monaLayout.xml line 3
+<global name="detector_data_destination" ndattribute="SaveDest"></global>
+ ‘detector_data_destination” is a hardcoded name in the source that determines where to save new frames coming in. Here it is set to an ndattribute called SaveDest. 
+
+If we look for SaveDest in the monaDetectorAttributes.xml file we find it at line 24
+<Attribute name="SaveDest"                      type="EPICS_PV"     source="2bmbPG3:cam1:FrameType"                     dbrtype="DBR_STRING”/>
+
+This ndattribute comes from an EPICS_PV which is the IOC_PREFIX:cam1:FrameType and is sent over as a DRB_STRING. So basically the String representation of this PV is where you want to save the data in the hdf5 file. This string has to match the layout in monaLayout.xml . So looking at monaLayout.xml we have a group called exchange and in that group we have data, data_dark, and data_white for frame data. So if I want new frames to be saved to data_white I would have to set the string rep of FrameType to be /exchange/data_white . If it want it to save back to data I would set it to /exchange/data . 
+
+In the legacy TXM setup, FrameType was used to determine if it is Data, Data_white or Data_dark frame. This PV is an enum with possible values of 0, 1, or 2. The string representation of these values follow: 
+IOC_PREFIX:cam1:FrameType.ZRST = data
+IOC_PREFIX:cam1:FrameType.ONST = data_dark
+IOC_PREFIX:cam1:FrameType.TWST = data_white
+
+So to keep the same logic as the legacy TXM at 32IDC and 2-BM we change the string to be the location in the hdf5 dataset
+caput for 
+IOC_PREFIX:cam1:FrameType.ZRST = /exchange/data
+IOC_PREFIX:cam1:FrameType.ONST = /exchange/data_dark
+IOC_PREFIX:cam1:FrameType.TWST = /exchange/data_white
+# make sure to put these in autosave so they are restored when IOC is restarted!
+
+This way when the scan application changes FrameType to 1 it will send the new string save destination to the hdf5 writer and know where to write the frame. 
+
+Any PV can be used, we just stuck with FrameType because it was an available PV in all AD IOC’s.
+
+Thanks,
+Arthur 
+
+> On Jun 15, 2018, at 7:56 AM, Jemian, Pete R. <jemian@anl.gov> wrote:
+>
+> correction
+>
+> On 2018-06-15 7:20 AM, Pete Jemian wrote:
+>> It relies on the PV "SaveDest"
+>
+> "SaveDest is the local name for the attribute.  The PV is "FrameType":
+>
+> <Attribute name="SaveDest"
+>    type="EPICS_PV"
+>    source="2bmbPG3:cam1:FrameType"
+>    dbrtype="DBR_STRING"/>
+
