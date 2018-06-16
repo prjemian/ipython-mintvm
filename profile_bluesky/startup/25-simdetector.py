@@ -30,6 +30,22 @@ class MySingleTriggerHdf5SimDetector(SingleTrigger, SimDetector):
 
 try:
     _ad_prefix = "13SIM1:"
+    
+    # Preset the FrameType mbbo records for the HDF5 addresses
+    # to store each type of acquisition.  Coordinates with
+    # configuration in the attributes and layout XML files for AD.
+    class MyMbboLabels(Device):
+        label0 = Component(EpicsSignal, ".ZRST")
+        label1 = Component(EpicsSignal, ".ONST")
+        label2 = Component(EpicsSignal, ".TWST")
+    mbbo     = MyMbboLabels(_ad_prefix+"cam1:FrameType",     name="mbbo")
+    mbbo_rbv = MyMbboLabels(_ad_prefix+"cam1:FrameType_RBV", name="mbbo_rbv")
+    for obj in (mbbo, mbbo_rbv):                # original values
+        obj.label0.put("/exchange/data")        # Normal
+        obj.label1.put("/exchange/data_dark")   # Background
+        obj.label2.put("/exchange/data_white")  # FlatField
+    del mbbo, mbbo_rbv, obj, MyMbboLabels       # dispose temporary items
+        
     adsimdet = MySingleTriggerHdf5SimDetector(_ad_prefix, name='adsimdet')
     adsimdet.read_attrs.append("hdf1")
 
@@ -37,12 +53,9 @@ except TimeoutError:
     print(f"Could not connect {_ad_prefix} sim detector")
 
 
-def demo_count_simdet(det=None, count_time=0.2):
+def demo_count_simdet(det, count_time=0.2):
     det.cam.stage_sigs["acquire_time"] = count_time
-    det.describe_configuration()
     RE(bp.count([det]))
-    for i, ev in enumerate(db[-1].events()):
-        print(i, ev["data"][det.hdf1.name+"_full_file_name"])
 
 
 def ad_continuous_setup(det, acq_time=0.1, acq_period=0.005):
