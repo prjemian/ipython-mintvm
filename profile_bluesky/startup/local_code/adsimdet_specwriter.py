@@ -501,7 +501,7 @@ class SpecWriterCallback(object):
                     scan_id = int(line.split()[1])
 
         self.spec_filename = filename
-        self.spec_epoch = epochp
+        self.spec_epoch = epoch
         self.spec_user = username
         return scan_id
 
