@@ -203,9 +203,11 @@ class SpecWriterCallback(object):
         )
         logger = logging.getLogger(__name__)
         uid = document.get("uid")
-        if uid is not None:
+        if uid is None:
             # datum document does not have a "uid"
-            logger.debug("{} document, uid={}".format(key, document["uid"]))
+            # see: https://github.com/NSLS-II/bluesky/issues/1070
+            uid = document["datum_id"]
+        logger.debug("{} document, uid={}".format(key, uid))
         if key in xref:
             self._datetime = datetime.datetime.fromtimestamp(document["time"])
             xref[key](document)
@@ -318,7 +320,7 @@ class SpecWriterCallback(object):
                 elif k == "Epoch_float":
                     v = doc["time"] - self.time
                 else:
-                    v = doc["data"][k]
+                    v = doc["data"][k]  # TODO: What if data is a str?  Handle below in write_scan()
                 self.data[k].append(v)
             self.num_primary_data += 1
     
@@ -367,8 +369,17 @@ class SpecWriterCallback(object):
         if len(self.data.keys()) > 0:
             lines.append("#L " + "  ".join(self.data.keys()))
             for i in range(self.num_primary_data):
-                s = [str(self.data[k][i]) for k in self.data.keys()]
+                str_data = OrderedDict()
+                s = []
+                for k in self.data.keys():
+                    datum = self.data[k][i]
+                    if isinstance(datum, str):
+                        str_data[k] = datum
+                        datum = i
+                    s.append(str(datum))
                 lines.append(" ".join(s))
+                for k in str_data.keys():
+                    lines.append("#U {} {} {}".format(i, k, str_data[k]))
         else:
             lines.append("#C no data column labels identified")
 
@@ -490,7 +501,7 @@ class SpecWriterCallback(object):
                     scan_id = int(line.split()[1])
 
         self.spec_filename = filename
-        self.spec_epoch = epoch
+        self.spec_epoch = epochp
         self.spec_user = username
         return scan_id
 
@@ -503,8 +514,10 @@ if __name__ == "__main__":
     adsimdet.read_attrs.append("hdf1")
 
     specwriter = SpecWriterCallback()
-    # TODO: mkdir -p /tmp/spec/
-    specwriter.newfile(os.path.join("/tmp", specwriter.spec_filename))
+    path_tmp_spec = "/tmp/spec"
+    if not os.path.exists(path_tmp_spec):
+        os.mkdir(path_tmp_spec)
+    specwriter.newfile(os.path.join(path_tmp_spec, specwriter.spec_filename))
     cb_index = RE.subscribe(specwriter.receiver)
     print("SPEC data file:", specwriter.spec_filename)
     # count it
