@@ -9,6 +9,8 @@ from ophyd.areadetector.filestore_mixins import FileStoreHDF5IterativeWrite
 from ophyd import Component, Device, EpicsSignalWithRBV
 from ophyd.areadetector import ADComponent
 
+from APS_BlueSky_tools.devices import ApsHDF5Plugin
+
 
 image_file_path = "/tmp/simdet/%Y/%m/%d/"
 
@@ -22,7 +24,7 @@ class MySingleTriggerHdf5SimDetector(SingleTrigger, SimDetector):
        
     image = Component(ImagePlugin, suffix="image1:")
     hdf1 = Component(
-        MyHDF5Plugin,
+        ApsHDF5Plugin,
         suffix='HDF1:', 
         root='/',                               # for databroker
         write_path_template=image_file_path,    # for EPICS AD
@@ -48,6 +50,10 @@ try:
         
     adsimdet = MySingleTriggerHdf5SimDetector(_ad_prefix, name='adsimdet')
     adsimdet.read_attrs.append("hdf1")
+    # option: 
+    # del adsimdet.hdf1.stage_sigs["array_counter"]
+    adsimdet.hdf1.stage_sigs["file_template"] = '%s%s_%3.3d.h5'
+    # adsimdet.hdf1.file_name.put("test")
 
 except TimeoutError:
     print(f"Could not connect {_ad_prefix} sim detector")
