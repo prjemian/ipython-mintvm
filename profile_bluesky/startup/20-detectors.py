@@ -7,4 +7,4 @@ print(__file__)
 
 scaler = ScalerCH('prj:scaler1', name='scaler')
 scaler.match_names()
-use_EPICS_scaler_channels(scaler)
+APS_devices.use_EPICS_scaler_channels(scaler)

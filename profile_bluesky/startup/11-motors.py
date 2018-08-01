@@ -35,6 +35,6 @@ rig = MyRig("prj:", name="rig")
 
 # append_wa_motor_list(m1, m2, m3, m4, m5, m6, m7, m8)
 
-shutter = EpicsMotorShutter("prj:m9", name="shutter", labels=("shutter",))
+shutter = APS_devices.EpicsMotorShutter("prj:m9", name="shutter", labels=("shutter",))
 shutter.closed_position = 0.0
 shutter.open_position = 3.0        # takes a little time to get here

@@ -9,8 +9,6 @@ from ophyd.areadetector.filestore_mixins import FileStoreHDF5IterativeWrite
 from ophyd import Component, Device, EpicsSignalWithRBV
 from ophyd.areadetector import ADComponent
 
-from APS_BlueSky_tools.devices import ApsHDF5Plugin
-
 
 image_file_path = "/tmp/simdet/%Y/%m/%d/"
 
@@ -24,7 +22,7 @@ class MySingleTriggerHdf5SimDetector(SingleTrigger, SimDetector):
        
     image = Component(ImagePlugin, suffix="image1:")
     hdf1 = Component(
-        ApsHDF5Plugin,
+        APS_devices.ApsHDF5Plugin,
         suffix='HDF1:', 
         root='/',                               # for databroker
         write_path_template=image_file_path,    # for EPICS AD
