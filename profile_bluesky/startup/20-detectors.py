@@ -4,4 +4,7 @@ print(__file__)
 
 # noisy = EpicsSignalRO('prj:userCalc1', name='noisy')
 # scaler = EpicsScaler('prj:scaler1', name='scaler')
-# sc2 = ScalerCH('prj:scaler1', name='sc2')
+
+scaler = ScalerCH('prj:scaler1', name='scaler')
+scaler.match_names()
+use_EPICS_scaler_channels(scaler)
