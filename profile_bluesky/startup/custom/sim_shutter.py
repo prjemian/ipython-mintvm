@@ -1,6 +1,6 @@
 
 from ophyd.sim import SynSignal, SynSignalRO
-from ophyd import Component, Device, DeviceStatus, FormattedComponent
+from ophyd import Component, Device, DeviceStatus, FormattedComponent, Signal
 
 
 class SimulatedApsPssShutterWithStatus(Device):
