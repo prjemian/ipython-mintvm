@@ -5,7 +5,7 @@ print(__file__)
 from ophyd import SingleTrigger, AreaDetector, SimDetector
 from ophyd import HDF5Plugin, ImagePlugin
 from ophyd.areadetector.trigger_mixins import SingleTrigger
-from ophyd.areadetector.filestore_mixins import FileStoreHDF5IterativeWrite
+from ophyd.areadetector.filestore_mixins import FileStoreIterativeWrite
 from ophyd import Component, Device, EpicsSignalWithRBV
 from ophyd.areadetector import ADComponent
 
@@ -13,20 +13,22 @@ from ophyd.areadetector import ADComponent
 image_file_path = "/tmp/simdet/%Y/%m/%d/"
 
 
-class MyHDF5Plugin(HDF5Plugin, FileStoreHDF5IterativeWrite):
-    """
-    """
+class myHdf5EpicsIterativeWriter(
+        APS_devices.AD_EpicsHdf5FileName, 
+        FileStoreIterativeWrite): pass
+class myHDF5FileNames(HDF5Plugin, myHdf5EpicsIterativeWriter): pass
     
 
 class MySingleTriggerHdf5SimDetector(SingleTrigger, SimDetector): 
        
     image = Component(ImagePlugin, suffix="image1:")
     hdf1 = Component(
-        APS_devices.ApsHDF5Plugin,
+        myHDF5FileNames,
         suffix='HDF1:', 
         root='/',                               # for databroker
         write_path_template=image_file_path,    # for EPICS AD
     )
+
 
 try:
     _ad_prefix = "13SIM1:"
