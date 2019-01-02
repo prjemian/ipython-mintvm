@@ -37,9 +37,9 @@ get_ipython().register_magics(BlueskyMagics)
 
 # Set up the BestEffortCallback.
 from bluesky.callbacks.best_effort import BestEffortCallback
-#bec = BestEffortCallback()
-#callback_db['BestEffortCallback'] = RE.subscribe(bec)
-#peaks = bec.peaks  # just an alias for less typing
+bec = BestEffortCallback()
+callback_db['BestEffortCallback'] = RE.subscribe(bec)
+peaks = bec.peaks  # just an alias for less typing
 
 # At the end of every run, verify that files were saved and
 # print a confirmation message.
