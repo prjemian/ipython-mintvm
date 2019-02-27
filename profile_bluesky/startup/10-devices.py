@@ -12,8 +12,8 @@ from ophyd import AreaDetector, PcoDetectorCam
 from ophyd import SingleTrigger, ImagePlugin, HDF5Plugin
 from ophyd.areadetector.filestore_mixins import FileStoreHDF5IterativeWrite
 
-import APS_BlueSky_tools.devices as APS_devices
-import APS_BlueSky_tools.plans as APS_plans
+import apstools.devices as APS_devices
+import apstools.plans as APS_plans
 
 # TODO: fix upstream!!
 class NullMotor(SoftPositioner):

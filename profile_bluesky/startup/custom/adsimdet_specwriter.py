@@ -4,7 +4,7 @@ fix SpecWriterCallback for AreaDetector
 
 GitHub issues:
 
-*    https://github.com/BCDA-APS/APS_BlueSky_tools/issues/29
+*    https://github.com/BCDA-APS/apstools/issues/29
 *    https://github.com/APS-USAXS/ipython-usaxs/issues/12
 *    https://github.com/APS-USAXS/ipython-usaxs/issues/13
 """

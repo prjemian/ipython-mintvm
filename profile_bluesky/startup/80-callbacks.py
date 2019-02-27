@@ -2,14 +2,14 @@ print(__file__)
 
 # custom callbacks
 
-import APS_BlueSky_tools.callbacks
-import APS_BlueSky_tools.filewriters
+import apstools.callbacks
+import apstools.filewriters
 
 
-#doc_collector = APS_BlueSky_tools.callbacks.DocumentCollectorCallback()
+#doc_collector = apstools.callbacks.DocumentCollectorCallback()
 #callback_db['doc_collector'] = RE.subscribe(doc_collector.receiver)
 
-specwriter = APS_BlueSky_tools.filewriters.SpecWriterCallback()
+specwriter = apstools.filewriters.SpecWriterCallback()
 specwriter.newfile(os.path.join("/tmp", specwriter.spec_filename))
 callback_db['specwriter'] = RE.subscribe(specwriter.receiver)
 print("SPEC data file:", specwriter.spec_filename)
